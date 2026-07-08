@@ -10,6 +10,8 @@ from typing import Optional
 from models import CaseIntake, Claimant, Defendant, Claim, Evidence
 from utils_rag import GroundedCaseExtractor, validate_narrative, safe_json_dump
 from config import JURISDICTIONS, CASE_TYPES, EVIDENCE_TYPES
+from simulation_utils import SimulationManager
+from rebuttal_engine import RebuttalCoach
 
 # Page configuration
 st.set_page_config(
@@ -79,6 +81,10 @@ if 'show_edit' not in st.session_state:
     st.session_state.show_edit = False
 if 'grounding_info' not in st.session_state:
     st.session_state.grounding_info = None
+if 'simulation_result' not in st.session_state:
+    st.session_state.simulation_result = None
+if 'rebuttal_feedbacks' not in st.session_state:
+    st.session_state.rebuttal_feedbacks = {}
 
 
 def create_date_input(label: str, value: Optional[date] = None, key: str = None):
@@ -272,6 +278,9 @@ def edit_case_details(case: CaseIntake) -> CaseIntake:
 
 def main():
     """Main application function"""
+    # Top Safety Disclaimer
+    st.warning("⚠️ **DISCLAIMER:** This simulator is for case-preparation practice only. It does not provide legal advice and is not a substitute for a licensed attorney.")
+    
     st.markdown('<div class="main-header">⚖️ Legal Case Intake Form (RAG Grounded)</div>', unsafe_allow_html=True)
     st.markdown("*Extract and validate legal case information with grounding in actual statutes and case law*")
     
@@ -386,6 +395,8 @@ a report from the fire department, and witness statements from neighbors."""
             st.session_state.original_narrative = ""
             st.session_state.show_edit = False
             st.session_state.grounding_info = None
+            st.session_state.simulation_result = None
+            st.session_state.rebuttal_feedbacks = {}
             st.rerun()
     
     # Display and edit extracted case
@@ -397,7 +408,7 @@ a report from the fire department, and witness statements from neighbors."""
             display_grounding_info(st.session_state.grounding_info)
         
         # Create tabs for different views
-        tab1, tab2, tab3 = st.tabs(["📋 View Extracted Data", "✏️ Edit Details", "📥 Export"])
+        tab1, tab2, tab3, tab4, tab5 = st.tabs(["📋 View Extracted Data", "✏️ Edit Details", "⚖️ Simulation", "🛡️ Rebuttal (Jawab)", "📥 Export"])
         
         with tab1:
             st.markdown('<div class="section-header">Extracted Case Information</div>', unsafe_allow_html=True)
@@ -473,6 +484,83 @@ a report from the fire department, and witness statements from neighbors."""
                 )
         
         with tab3:
+            st.markdown('<div class="section-header">⚖️ Opposing Counsel Simulation</div>', unsafe_allow_html=True)
+            if st.button("🚀 Run Opposing Counsel Simulation", type="primary"):
+                with st.spinner("Analyzing case vulnerabilities and generating counter-arguments..."):
+                    sim_manager = SimulationManager()
+                    laws = st.session_state.grounding_info['relevant_laws'] if st.session_state.grounding_info else None
+                    result = sim_manager.run_opposing_counsel_simulation(
+                        st.session_state.extracted_case,
+                        st.session_state.original_narrative,
+                        st.session_state.extracted_case.jurisdiction,
+                        st.session_state.extracted_case.case_type,
+                        laws
+                    )
+                    st.session_state.simulation_result = result
+                    st.rerun()
+            
+            if st.session_state.simulation_result:
+                if "error" in st.session_state.simulation_result:
+                    st.error(f"Simulation Error: {st.session_state.simulation_result['error']}")
+                else:
+                    risk = st.session_state.simulation_result.get("risk_level", {})
+                    st.markdown(f"### Risk Level: **{risk.get('risk_level', 'Unknown')}** (Confidence: {risk.get('confidence_score', 0):.0%})")
+                    
+                    st.markdown("#### Vulnerabilities:")
+                    for v in st.session_state.simulation_result.get('case_vulnerabilities', []):
+                        st.write(f"- **[{v.get('type')}]** {v.get('description')} *(Priority: {v.get('priority')})*")
+                    
+                    st.markdown("#### Detailed Analysis")
+                    sim_manager = SimulationManager()
+                    st.text_area("Analysis Report", value=sim_manager.get_detailed_analysis(st.session_state.simulation_result), height=300, disabled=True)
+        
+        with tab4:
+            st.markdown('<div class="section-header">🛡️ Rebuttal Coach (Jawab Ki Tayaari)</div>', unsafe_allow_html=True)
+            st.write("Practice responding to the opposing counsel's arguments. Our AI Coach will evaluate your responses.")
+            
+            if not st.session_state.simulation_result or "opponent_analysis" not in st.session_state.simulation_result:
+                st.info("Please run the Simulation in the previous tab first.")
+            else:
+                opponent_analysis_raw = st.session_state.simulation_result["opponent_analysis"]
+                objections = []
+                if isinstance(opponent_analysis_raw, str):
+                    try:
+                        opponent_data = json.loads(opponent_analysis_raw)
+                        objections = opponent_data.get("main_arguments", [])
+                    except Exception:
+                        pass
+                
+                if not objections:
+                    st.warning("Could not parse opposing arguments for rebuttal.")
+                else:
+                    coach = RebuttalCoach()
+                    for idx, obj in enumerate(objections):
+                        with st.expander(f"Argument {idx+1}: {obj.get('argument_title', 'Argument')}"):
+                            st.write(f"**Counsel Argues:** {obj.get('aggressive_counter', '')}")
+                            st.write(f"**Legal Basis:** {obj.get('legal_basis', '')}")
+                            
+                            user_resp = st.text_area("Your Response / Defense:", key=f"rebuttal_{idx}")
+                            
+                            if st.button("Evaluate Response", key=f"eval_btn_{idx}"):
+                                if user_resp.strip():
+                                    with st.spinner("Coach is reviewing..."):
+                                        feedback = coach.evaluate_rebuttal(obj, user_resp)
+                                        st.session_state.rebuttal_feedbacks[idx] = feedback
+                                else:
+                                    st.warning("Please enter a response first.")
+                                    
+                            if idx in st.session_state.rebuttal_feedbacks:
+                                fdbk = st.session_state.rebuttal_feedbacks[idx]
+                                if "error" in fdbk:
+                                    st.error(fdbk["error"])
+                                else:
+                                    color = "green" if fdbk.get("strength") == "Strong" else "orange" if fdbk.get("strength") == "Moderate" else "red"
+                                    st.markdown(f"**Strength:** <span style='color:{color}'>{fdbk.get('strength', 'Unknown')}</span>", unsafe_allow_html=True)
+                                    st.write(f"**Feedback:** {fdbk.get('feedback', '')}")
+                                    st.write(f"**Missing Evidence:** {fdbk.get('missing_evidence', '')}")
+                                    st.info(f"💡 **Tip:** {fdbk.get('coaching_tip', '')}")
+        
+        with tab5:
             st.markdown('<div class="section-header">📥 Export Data</div>', unsafe_allow_html=True)
             
             # Export as JSON
@@ -508,6 +596,10 @@ Extracted at: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
 RAG Grounding: {'✓ Grounded in legal documents' if st.session_state.grounding_info and st.session_state.grounding_info['relevant_laws'] else '⚠ Limited grounding'}
 """
                 st.text_area("Summary", value=summary_text, height=250, disabled=True)
+
+    # Bottom Safety Disclaimer
+    st.divider()
+    st.warning("⚠️ **DISCLAIMER:** This simulator is for case-preparation practice only. It does not provide legal advice and is not a substitute for a licensed attorney.")
 
 
 if __name__ == "__main__":

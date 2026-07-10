@@ -1,0 +1,226 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Google Fonts — Inter */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+/* ── Base resets ──────────────────────────────────────────────────────────── */
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: 'Inter', system-ui, sans-serif;
+  background-color: #080e1f;
+  color: #e0e9ff;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ── Typography ───────────────────────────────────────────────────────────── */
+h1, h2, h3, h4, h5, h6 {
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+}
+
+/* ── Utility component classes ────────────────────────────────────────────── */
+@layer components {
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2
+           px-6 py-3 rounded-lg font-semibold text-sm
+           bg-gold-500 text-navy-950 border border-gold-400
+           hover:bg-gold-400 active:scale-95
+           transition-all duration-200
+           focus:outline-none focus:ring-2 focus:ring-gold-400 focus:ring-offset-2 focus:ring-offset-navy-900
+           disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100;
+  }
+
+  .btn-secondary {
+    @apply inline-flex items-center justify-center gap-2
+           px-6 py-3 rounded-lg font-semibold text-sm
+           bg-navy-800 text-navy-100 border border-navy-600
+           hover:bg-navy-700 hover:border-navy-500 active:scale-95
+           transition-all duration-200
+           focus:outline-none focus:ring-2 focus:ring-navy-400 focus:ring-offset-2 focus:ring-offset-navy-900
+           disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100;
+  }
+
+  .btn-outline {
+    @apply inline-flex items-center justify-center gap-2
+           px-6 py-3 rounded-lg font-semibold text-sm
+           bg-transparent text-gold-400 border border-gold-500
+           hover:bg-gold-500 hover:text-navy-950 active:scale-95
+           transition-all duration-200
+           focus:outline-none focus:ring-2 focus:ring-gold-400 focus:ring-offset-2 focus:ring-offset-navy-900;
+  }
+
+  .card {
+    @apply bg-navy-900 border border-navy-700 rounded-xl p-6
+           shadow-lg shadow-navy-950/50;
+  }
+
+  .card-glass {
+    @apply bg-navy-900/60 backdrop-blur-md border border-navy-700/50 rounded-xl p-6
+           shadow-lg shadow-navy-950/50;
+  }
+
+  .form-label {
+    @apply block text-sm font-medium text-navy-200 mb-1.5;
+  }
+
+  .form-input {
+    @apply w-full px-4 py-2.5 rounded-lg text-sm
+           bg-navy-800 border border-navy-600 text-navy-100
+           placeholder:text-navy-400
+           focus:outline-none focus:ring-2 focus:ring-gold-500 focus:border-transparent
+           transition-colors duration-150
+           disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .form-textarea {
+    @apply form-input resize-y min-h-[120px];
+  }
+
+  .form-select {
+    @apply form-input cursor-pointer appearance-none;
+  }
+
+  .form-error {
+    @apply text-red-400 text-xs mt-1.5 flex items-center gap-1;
+  }
+
+  /* ── Badges ─────────────────────────────────────────────────────────────── */
+  .badge-mock {
+    @apply inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold
+           bg-amber-500/20 text-amber-400 border border-amber-500/30;
+  }
+
+  .badge-milestone {
+    @apply inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold
+           bg-navy-700 text-navy-300 border border-navy-600;
+  }
+
+  /* Milestone 2: live pipeline badge (green) */
+  .badge-live {
+    @apply inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold
+           bg-green-500/20 text-green-400 border border-green-500/30;
+  }
+
+  /* Milestone 2: warning badge (amber) */
+  .badge-warning {
+    @apply inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold
+           bg-amber-500/20 text-amber-400 border border-amber-500/30;
+  }
+
+  /* ── Sections ───────────────────────────────────────────────────────────── */
+  .section-heading {
+    @apply text-2xl md:text-3xl font-bold text-white mb-2;
+  }
+
+  .section-subheading {
+    @apply text-navy-300 text-base md:text-lg;
+  }
+
+  .divider {
+    @apply border-t border-navy-700 my-8;
+  }
+
+  /* ── Missing-context warning block (Milestone 2) ────────────────────────── */
+  .missing-context-block {
+    @apply bg-amber-500/5 border border-amber-500/30 rounded-xl p-5
+           shadow-lg shadow-amber-500/5;
+  }
+
+  /* ── Wizard step indicators (Milestone 2) ───────────────────────────────── */
+  .wizard-step-indicator {
+    @apply w-9 h-9 rounded-full flex items-center justify-center
+           text-sm font-bold transition-all duration-300
+           focus:outline-none focus:ring-2 focus:ring-gold-400 focus:ring-offset-2 focus:ring-offset-navy-900;
+  }
+
+  .wizard-step-active {
+    @apply bg-gold-500 text-navy-950 border-2 border-gold-400
+           shadow-md shadow-gold-500/30
+           scale-110;
+  }
+
+  .wizard-step-completed {
+    @apply bg-green-500/20 text-green-400 border-2 border-green-500/40;
+  }
+
+  .wizard-step-future {
+    @apply bg-navy-800 text-navy-400 border-2 border-navy-600;
+  }
+}
+
+/* ── Scrollbar styling ────────────────────────────────────────────────────── */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #080e1f;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #2d3e82;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #3a51a8;
+}
+
+/* ── JSON viewer ─────────────────────────────────────────────────────────── */
+.json-viewer {
+  font-family: 'Fira Code', 'Courier New', monospace;
+  font-size: 0.8rem;
+  line-height: 1.6;
+  background: #080e1f;
+  border: 1px solid #1e2f5e;
+  border-radius: 0.5rem;
+  padding: 1rem;
+  overflow-x: auto;
+  white-space: pre;
+  color: #a5b9fc;
+}
+
+/* ── Loading spinner ─────────────────────────────────────────────────────── */
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid rgba(251,191,36,0.3);
+  border-top-color: #fbbf24;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
+/* ── Fade-in animation ───────────────────────────────────────────────────── */
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0);   }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.4s ease-out both;
+}
+
+/* ── Slide-in animation (Milestone 2 — wizard step transitions) ──────────── */
+@keyframes slide-in {
+  from { opacity: 0; transform: translateX(24px); }
+  to   { opacity: 1; transform: translateX(0);    }
+}
+
+.animate-slide-in {
+  animation: slide-in 0.35s ease-out both;
+}

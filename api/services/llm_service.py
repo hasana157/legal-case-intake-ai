@@ -80,9 +80,10 @@ def _build_messages(
         )
     auth_block = "\n\n---\n\n".join(auth_texts) if auth_texts else "No authorities found."
 
-    sys_prompt = _ADVERSARIAL_SYSTEM_PROMPT.format(
-        claim_type=structured_case.claim_type.value,
-        jurisdiction=structured_case.jurisdiction
+    sys_prompt = (
+        _ADVERSARIAL_SYSTEM_PROMPT
+        .replace("{claim_type}", structured_case.claim_type.value)
+        .replace("{jurisdiction}", structured_case.jurisdiction)
     )
     
     sys_prompt += f"\n\nRETRIEVED AUTHORITIES:\n{auth_block}"

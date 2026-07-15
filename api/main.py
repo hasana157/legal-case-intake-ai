@@ -606,47 +606,55 @@ async def generate_opposition_v2(
     )
 
     t_request_start = time.monotonic()
+    skip_retrieval = os.getenv("QDRANT_SKIP_RETRIEVAL", "false").lower() == "true"
 
     async def event_generator():
         # Immediate heartbeat to keep Vercel connection alive
-        yield f"event: heartbeat\\ndata: {json.dumps({'status': 'Retrieving authorities...'})}\\n\\n"
+        yield f"event: heartbeat\ndata: {json.dumps({'status': 'Retrieving authorities...'})}\n\n"
         
         try:
             # Internal retrieval — Qdrant downtime is caught and handled gracefully
-            try:
-                retrieval_resp = retrieve_authorities(structured_case, k=10)
-                authorities = retrieval_resp.authorities
-            except Exception as qdrant_err:
-                # CRITIC 2: User sees a calm message, not a stack trace
-                logger.error(
-                    "Qdrant retrieval failed | case_id=%s | error=%s",
-                    structured_case.case_id,
-                    type(qdrant_err).__name__,
-                    extra={"request_id": getattr(request.state, 'request_id', '-')},
-                )
-                _qdrant_status = "Our legal database is temporarily unavailable. Generating general procedural arguments only."
-                yield f"event: heartbeat\\ndata: {json.dumps({'status': _qdrant_status})}\\n\\n"
-                authorities = []  # Graceful fallback: empty authorities
+            if skip_retrieval:
+                logger.info("Qdrant retrieval skipped | case_id=%s", structured_case.case_id)
+                authorities = []
+                insufficient_grounding = False
+            else:
+                try:
+                    retrieval_resp = retrieve_authorities(structured_case, k=10)
+                    authorities = retrieval_resp.authorities
+                    insufficient_grounding = retrieval_resp.insufficient_grounding
+                except Exception as qdrant_err:
+                    # CRITIC 2: User sees a calm message, not a stack trace
+                    logger.error(
+                        "Qdrant retrieval failed | case_id=%s | error=%s",
+                        structured_case.case_id,
+                        type(qdrant_err).__name__,
+                        extra={"request_id": getattr(request.state, 'request_id', '-')},
+                    )
+                    _qdrant_status = "Our legal database is temporarily unavailable. Generating general procedural arguments only."
+                    yield f"event: heartbeat\ndata: {json.dumps({'status': _qdrant_status})}\n\n"
+                    authorities = []  # Graceful fallback: empty authorities
+                    insufficient_grounding = False
             
-            yield f"event: heartbeat\\ndata: {json.dumps({'status': 'Drafting arguments...'})}\\n\\n"
+            yield f"event: heartbeat\ndata: {json.dumps({'status': 'Drafting arguments...'})}\n\n"
             
             # Helper to stream and accumulate
             async def _run_generation(is_retry=False):
                 async for chunk in generate_opposing_arguments_stream(structured_case, authorities, is_retry=is_retry):
                     # Send delta event
-                    yield f"event: delta\\ndata: {json.dumps({'text': chunk})}\\n\\n"
+                    yield f"event: delta\ndata: {json.dumps({'text': chunk})}\n\n"
             
             # Initial generation
             full_text = ""
             async for event_str in _run_generation(is_retry=False):
                 if event_str.startswith("event: delta"):
                     # parse out the delta to accumulate
-                    payload = json.loads(event_str.replace("event: delta\\ndata: ", "").strip())
+                    payload = json.loads(event_str.replace("event: delta\ndata: ", "").strip())
                     full_text += payload.get("text", "")
                 yield event_str
                 
             # Verification phase (C1-C4)
-            yield f"event: heartbeat\\ndata: {json.dumps({'status': 'Verifying citations...'})}\\n\\n"
+            yield f"event: heartbeat\ndata: {json.dumps({'status': 'Verifying citations...'})}\n\n"
             
             try:
                 # Try to parse the LLM's JSON response
@@ -662,12 +670,12 @@ async def generate_opposition_v2(
                 
                 # C4: Retry if G_v < 0.90
                 if g_v < 0.90:
-                    yield f"event: retry\\ndata: {json.dumps({'status': f'Grounding Verification failed (G_v={g_v:.2f}). Regenerating...'})}\\n\\n"
+                    yield f"event: retry\ndata: {json.dumps({'status': f'Grounding Verification failed (G_v={g_v:.2f}). Regenerating...'})}\n\n"
                     
                     full_text_retry = ""
                     async for event_str in _run_generation(is_retry=True):
                         if event_str.startswith("event: delta"):
-                            payload = json.loads(event_str.replace("event: delta\\ndata: ", "").strip())
+                            payload = json.loads(event_str.replace("event: delta\ndata: ", "").strip())
                             full_text_retry += payload.get("text", "")
                         yield event_str
                         
@@ -686,9 +694,9 @@ async def generate_opposition_v2(
                     "arguments": verified_args,
                     "g_v_score": g_v,
                     "retrieved_authorities": [a.model_dump() for a in authorities],
-                    "insufficient_grounding": retrieval_resp.insufficient_grounding
+                    "insufficient_grounding": insufficient_grounding
                 }
-                yield f"event: complete\\ndata: {json.dumps(final_payload)}\\n\\n"
+                yield f"event: complete\ndata: {json.dumps(final_payload)}\n\n"
                 
             except json.JSONDecodeError:
                 # CRITIC 3: Do NOT log full_text — it contains generated argument content
@@ -698,7 +706,7 @@ async def generate_opposition_v2(
                     extra={"request_id": getattr(request.state, 'request_id', '-')},
                 )
                 _parse_err_msg = "The AI response could not be processed. This occasionally happens on the free tier. Please try again."
-                yield f"event: error\\ndata: {json.dumps({'error': _parse_err_msg})}\\n\\n"
+                yield f"event: error\ndata: {json.dumps({'error': _parse_err_msg})}\n\n"
                 
         except Exception as outer_err:
             # CRITIC 2: calm, non-alarming message for a stressed self-represented litigant
@@ -710,7 +718,7 @@ async def generate_opposition_v2(
                 extra={"request_id": getattr(request.state, 'request_id', '-')},
             )
             _gen_err_msg = "Something went wrong while generating arguments. Our service may be experiencing high demand. Please wait a moment and try again."
-            yield f"event: error\\ndata: {json.dumps({'error': _gen_err_msg})}\\n\\n"
+            yield f"event: error\ndata: {json.dumps({'error': _gen_err_msg})}\n\n"
 
     # Headers for SSE
     return StreamingResponse(

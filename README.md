@@ -1,231 +1,289 @@
 # Opposing-Argument Simulator
 
-> **Legal-tech generative-AI platform** that lets self-represented litigants rehearse their case against a simulated opposing counsel.
+AI-powered legal case rehearsal platform for self-represented litigants to practice against simulated opposing counsel.
 
-**Status:** Milestone 1 — Scaffold & Pipeline ✅  
-**Stack:** Next.js 14 + TypeScript · FastAPI · Vercel Serverless  
-**Author:** Hasana Zahid · COMSATS University Islamabad · SP24-BAI-060
+**Status:** Active prototype with Groq extraction, SSE argument generation, rebuttal workspace, PDF export, optional Qdrant retrieval, and citation verification.
 
----
+**Built by:** Hasana Zahid, COMSATS University Islamabad
 
-## Project Overview
+**License:** MIT
 
-Self-represented litigants (people without lawyers) are at a severe disadvantage in court. This tool lets them:
-
-1. **Submit** their case facts through a guided intake form
-2. **Receive** a set of AI-generated opposing arguments (simulating what the other side might argue)
-3. **Practise rebuttals** so they walk into court better prepared
-
-> **IMPORTANT:** This is an educational simulation only — not legal advice.
+> Educational simulation only. This project does not provide legal advice, legal representation, or court-ready legal strategy. Always consult a qualified attorney for real legal matters.
 
 ---
 
-## Repository Structure
+## Overview
 
+Self-represented litigants often walk into court without knowing what the other side may argue. This app helps them rehearse by turning case facts into a structured case model, generating likely opposing arguments, and giving the user a workspace to draft rebuttals.
+
+The main workflow is:
+
+1. Enter case details through a guided intake flow.
+2. Extract structured facts with a Groq LLM.
+3. Optionally retrieve legal authorities from Qdrant.
+4. Stream simulated opposing arguments over Server-Sent Events.
+5. Verify cited authorities where retrieval is available.
+6. Draft rebuttals and export a hearing rehearsal guide as PDF.
+
+---
+
+## Architecture
+
+```mermaid
+flowchart LR
+    User["User / Self-Represented Litigant"]
+    Browser["Next.js Frontend<br/>Intake, Simulation, Rebuttal Workspace"]
+    API["FastAPI Backend<br/>api/main.py"]
+    Parser["Case Parser<br/>Groq structured extraction"]
+    Retrieval["Retrieval Service<br/>Qdrant optional"]
+    Generator["LLM Streaming Service<br/>Groq opposing arguments"]
+    Verifier["Citation Verifier<br/>Grounding score"]
+    PDF["PDF Export<br/>Client-side guide"]
+
+    User --> Browser
+    Browser -->|POST /api/intake| API
+    API --> Parser
+    Parser --> API
+    Browser -->|POST /api/generate-opposition-v2<br/>SSE stream| API
+    API --> Retrieval
+    Retrieval --> API
+    API --> Generator
+    Generator -->|delta events| Browser
+    API --> Verifier
+    Verifier -->|complete event| Browser
+    Browser --> PDF
 ```
-opposing-simulator/
-├── vercel.json           # Vercel routing (API → FastAPI, / → Next.js)
-├── .gitignore
-├── .env.example          # Copy to .env and fill in keys
-├── README.md
-│
-├── frontend/             # Next.js 14 + TypeScript + Tailwind CSS
-│   ├── package.json
-│   ├── tsconfig.json
-│   ├── next.config.js
-│   ├── tailwind.config.js
-│   ├── postcss.config.js
-│   └── src/
-│       ├── pages/        # / · /intake · /simulation
-│       ├── components/   # Layout, CaseIntakeForm, ArgumentDisplay …
-│       ├── services/     # api.ts — axios wrapper
-│       ├── types/        # index.ts — shared TypeScript interfaces
-│       └── styles/       # globals.css
-│
-└── api/                  # FastAPI (Vercel Python Serverless)
-    ├── main.py           # All routes: /health · /intake · /generate-opposition
-    └── requirements.txt
+
+---
+
+## Key Features
+
+| Feature | Status | Details |
+| --- | --- | --- |
+| Multi-step case intake | Complete | Guided wizard for parties, claim type, dates, narrative, and evidence |
+| Groq LLM extraction | Complete | Converts narrative into structured Pydantic case data |
+| SSE argument streaming | Complete | Streams generated opposing arguments as they arrive |
+| Qdrant retrieval | Optional | Can be skipped with `QDRANT_SKIP_RETRIEVAL=true` |
+| Citation verification | Complete | Flags unverified authorities and reports grounding score |
+| Rebuttal workspace | Complete | Draft responses for each simulated argument |
+| PDF export | Complete | Exports a hearing rehearsal guide |
+| Rebuttal hints | Complete | Lightweight LLM helper for drafting angles |
+
+---
+
+## Tech Stack
+
+| Layer | Technology |
+| --- | --- |
+| Frontend | Next.js 14, React 18, TypeScript |
+| Styling | Tailwind CSS |
+| Backend | FastAPI, Pydantic v2 |
+| LLM | Groq, Llama 3.3 70B |
+| Retrieval | Qdrant, sentence-transformers |
+| Streaming | Server-Sent Events |
+| PDF | jsPDF |
+| Deployment target | Vercel / local development |
+
+---
+
+## Project Structure
+
+```text
+legal-case-intake-ai/
+|-- api/
+|   |-- main.py                       # FastAPI routes
+|   |-- models/                       # Pydantic schemas
+|   |-- services/
+|   |   |-- case_parser.py             # Groq structured extraction
+|   |   |-- retrieval_service.py       # Optional Qdrant retrieval
+|   |   |-- llm_service.py             # Streaming opposing arguments
+|   |   |-- citation_verifier.py       # Grounding verification
+|   |-- requirements.txt
+|
+|-- frontend/
+|   |-- src/pages/                    # Landing, intake, simulation
+|   |-- src/components/               # Wizard, streaming display, rebuttal UI
+|   |-- src/services/                 # API and PDF helpers
+|   |-- package.json
+|
+|-- evals/                            # Evaluation reports and support files
+|-- vercel.json
+|-- README.md
 ```
 
 ---
 
-## Milestone Roadmap
-
-| # | Milestone | Status |
-|---|-----------|--------|
-| 1 | Scaffold & Deployment Pipeline | ✅ This release |
-| 2 | Vector DB & Real Legal Data (Qdrant + Harvard CAP) | 🔜 |
-| 3 | Claude AI Integration & Streaming | 🔜 |
-| 4 | Citation Engine & PDF Export | 🔜 |
-| 5 | Full Legal Disclaimer & Bias Audit | 🔜 |
-| 6 | Production Hardening & Launch | 🔜 |
-
----
-
-## Local Development
+## Quick Start
 
 ### Prerequisites
 
-- Node.js ≥ 18
-- Python ≥ 3.11
-- Git
+- Node.js 18 or newer
+- Python 3.11 or newer
+- Groq API key from `https://console.groq.com`
+- Optional Qdrant Cloud credentials
 
-### 1 — Clone & Configure
+### 1. Configure Environment
 
-```bash
-git clone https://github.com/<your-username>/opposing-simulator.git
-cd opposing-simulator
+From the project root:
 
-# Copy environment template
-cp .env.example .env
-# (fill in keys — all optional for Milestone 1)
+```powershell
+cd D:\case_intake_app3\legal-case-intake-ai
+copy .env.example .env
+notepad .env
 ```
 
-### 2 — Frontend
+Minimum local configuration:
 
-```bash
-cd frontend
+```dotenv
+GROQ_API_KEY=gsk_your_groq_api_key
+QDRANT_SKIP_RETRIEVAL=true
+NEXT_PUBLIC_API_BASE_URL=http://localhost:8000
+```
+
+To enable retrieval:
+
+```dotenv
+QDRANT_SKIP_RETRIEVAL=false
+QDRANT_URL=https://your-cluster.qdrant.io:6333
+QDRANT_API_KEY=your_qdrant_api_key
+```
+
+### 2. Start Backend
+
+```powershell
+cd D:\case_intake_app3\legal-case-intake-ai
+pip install -r api\requirements.txt
+python -m uvicorn api.main:app --reload --port 8000
+```
+
+Backend runs at:
+
+```text
+http://localhost:8000
+http://localhost:8000/docs
+```
+
+### 3. Start Frontend
+
+Open a second terminal:
+
+```powershell
+cd D:\case_intake_app3\legal-case-intake-ai\frontend
 npm install
-npm run dev          # → http://localhost:3000
+npm run dev
 ```
 
-### 3 — Backend
+Frontend runs at the URL printed by Next.js, usually:
 
-```bash
-cd api
-python -m venv venv
-
-# Windows
-venv\Scripts\activate
-
-# macOS / Linux
-source venv/bin/activate
-
-pip install -r requirements.txt
-uvicorn main:app --reload --port 8000
-# → http://localhost:8000
-# → http://localhost:8000/docs  (Swagger UI)
-```
-
-> The Next.js dev server automatically proxies `/api/*` to `localhost:8000` — no CORS issues locally.
-
-### 4 — Verify Everything Works
-
-```bash
-# Health check
-curl http://localhost:8000/api/health
-
-# Case intake (mock)
-curl -X POST http://localhost:8000/api/intake \
-  -H "Content-Type: application/json" \
-  -d '{
-    "plaintiff_name": "Jane Smith",
-    "defendant_name": "Acme Corp",
-    "claim_type": "breach_of_contract",
-    "jurisdiction": "California",
-    "filing_date": "2024-01-15",
-    "incident_date": "2023-11-01",
-    "facts": "Defendant failed to deliver goods as specified in the signed contract dated October 1, 2023.",
-    "relief_sought": "Compensatory damages of $50,000"
-  }'
-
-# Generate opposition (mock)
-curl -X POST http://localhost:8000/api/generate-opposition \
-  -H "Content-Type: application/json" \
-  -d '{
-    "case_id": "MOCK-001",
-    "case_input": {
-      "plaintiff_name": "Jane Smith",
-      "defendant_name": "Acme Corp",
-      "claim_type": "breach_of_contract",
-      "jurisdiction": "California",
-      "filing_date": "2024-01-15",
-      "incident_date": "2023-11-01",
-      "facts": "Defendant failed to deliver goods.",
-      "relief_sought": "Damages of $50,000"
-    }
-  }'
+```text
+http://localhost:3000
 ```
 
 ---
 
-## Deployment to Vercel
+## API Endpoints
 
-### Option A — Vercel CLI (Recommended)
-
-```bash
-# Install Vercel CLI globally
-npm install -g vercel
-
-# From repo root
-vercel login
-vercel link          # link to your Vercel project
-vercel env add ANTHROPIC_API_KEY
-vercel env add QDRANT_URL
-vercel env add QDRANT_API_KEY
-vercel --prod        # deploy to production
-```
-
-### Option B — Vercel Dashboard
-
-1. Push this repo to GitHub
-2. Go to [vercel.com/new](https://vercel.com/new) → Import Repository
-3. Set **Root Directory** to `.` (project root)
-4. Add Environment Variables from `.env.example`
-5. Click **Deploy**
-
-### Post-Deployment Verification
-
-After deploy, verify these URLs (replace with your live URL):
-
-```
-https://your-app.vercel.app/            → Landing page
-https://your-app.vercel.app/intake      → Case intake form
-https://your-app.vercel.app/simulation  → Simulation page
-https://your-app.vercel.app/api/health  → {"status":"ok","milestone":1}
-```
-
----
-
-## Environment Variables
-
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `ANTHROPIC_API_KEY` | Milestone 3+ | Claude API key |
-| `QDRANT_URL` | Milestone 2+ | Qdrant cluster URL |
-| `QDRANT_API_KEY` | Milestone 2+ | Qdrant API key |
-| `NEXT_PUBLIC_API_BASE_URL` | Optional | Override API base URL |
-
----
-
-## API Reference
-
-| Method | Path | Description |
-|--------|------|-------------|
+| Method | Path | Purpose |
+| --- | --- | --- |
 | `GET` | `/api/health` | Health check |
-| `POST` | `/api/intake` | Submit case intake |
-| `POST` | `/api/generate-opposition` | Generate opposing arguments |
-
-Full interactive docs at `/docs` (local) or `/api/docs` (if configured).
+| `POST` | `/api/intake` | Submit case and extract structured facts |
+| `POST` | `/api/retrieve-authorities` | Debug or inspect retrieval output |
+| `POST` | `/api/generate-opposition-v2` | Stream opposing arguments over SSE |
+| `POST` | `/api/rebuttal-hints` | Generate rebuttal starting points |
 
 ---
 
-## Technology Stack
+## SSE Event Flow
 
-| Layer | Technology | Version |
-|-------|-----------|---------|
-| Frontend | Next.js + TypeScript | 14.0.3 |
-| Styling | Tailwind CSS | 3.4.1 |
-| HTTP Client | Axios | 1.6.2 |
-| Backend | FastAPI | 0.104.1 |
-| Server | Uvicorn (ASGI) | 0.24.0 |
-| Validation | Pydantic v2 | 2.5.0 |
-| Hosting | Vercel Serverless | — |
+The simulation endpoint streams events in this order:
+
+```text
+heartbeat -> delta* -> heartbeat -> retry? -> delta* -> complete
+```
+
+Example event:
+
+```text
+event: delta
+data: {"text":"Generated argument text..."}
+```
+
+The final `complete` event contains:
+
+```json
+{
+  "arguments": [],
+  "g_v_score": 0.0,
+  "retrieved_authorities": [],
+  "insufficient_grounding": false
+}
+```
+
+---
+
+## Development Checks
+
+Backend syntax check:
+
+```powershell
+cd D:\case_intake_app3\legal-case-intake-ai
+python -m py_compile api/main.py api/services/llm_service.py api/services/citation_verifier.py
+```
+
+Frontend lint:
+
+```powershell
+cd D:\case_intake_app3\legal-case-intake-ai\frontend
+npm run lint
+```
+
+---
+
+## Recent Fixes
+
+- Corrected SSE framing to emit actual newline-delimited events.
+- Added `QDRANT_SKIP_RETRIEVAL` support for local testing without Qdrant.
+- Prevented missing retrieval response errors when retrieval is skipped or unavailable.
+- Fixed prompt construction in `llm_service.py` so JSON examples do not trigger Python `KeyError`.
+
+---
+
+## Known Limitations
+
+- The generated output is for rehearsal only and must not be treated as legal advice.
+- Groq free-tier rate limits can affect response availability.
+- Retrieval quality depends on the configured Qdrant collection.
+- No user authentication or persistent case history is included yet.
+- Citation verification checks retrieved authorities; it does not validate the law independently.
+
+---
+
+## Roadmap
+
+- Improve retrieval corpus coverage and metadata filters.
+- Add stronger evaluation reports for grounding and hallucination risk.
+- Add authentication and saved case history.
+- Add jurisdiction-specific prompt packs.
+- Add multilingual support.
+- Add deployment-ready observability and rate-limit dashboards.
+
+---
+
+## Legal Disclaimer
+
+This tool is an educational simulation. It does not create an attorney-client relationship, does not provide legal advice, and should not be used as a substitute for a qualified lawyer. Generated arguments may be incomplete, inaccurate, outdated, or inappropriate for a real case.
+
+---
+
+## Author
+
+**Hasana Zahid**  
+BS Artificial Intelligence  
+COMSATS University Islamabad  
+GitHub: [@hasana157](https://github.com/hasana157)
 
 ---
 
 ## License
 
-MIT — see [LICENSE](LICENSE) for details.
-
-> **Disclaimer:** This software is for educational simulation purposes only. It does not constitute legal advice. Always consult a qualified attorney for legal matters.
+MIT License. See `LICENSE` for details.

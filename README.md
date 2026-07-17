@@ -185,30 +185,29 @@ http://localhost:3000
 
 The RAG pipeline requires Harvard Caselaw Access Project data in Qdrant Cloud.
 
-### Quick Start (5 minutes setup)
+### Quick Start (Local Ingestion)
 
 1. **Create Qdrant Cloud account:** https://cloud.qdrant.io/ (free)
 2. **Create cluster** and copy credentials
-3. **Open Colab notebook:** https://colab.research.google.com/
-4. **Import notebook from GitHub:**
-   - File → Open → GitHub
-   - Search: hasana157/legal-case-intake-ai
-   - Open: notebooks/caselaw_ingestion.ipynb
-5. **Add Colab Secrets** (🔐 icon):
-   - QDRANT_URL
-   - QDRANT_API_KEY
-6. **Run all cells** (takes ~45 minutes)
-7. **Update .env:**
+3. **Configure Environment:**
+   In `api/.env`, add your credentials:
 ```bash
    QDRANT_SKIP_RETRIEVAL=false
    QDRANT_URL=your-url
    QDRANT_API_KEY=your-key
 ```
-8. **Start app** - RAG now works!
-
-See `notebooks/README.md` for detailed instructions.
-
----
+4. **Install ML Dependencies:**
+   From your terminal, install the required packages:
+```powershell
+   cd api
+   pip install huggingface_hub datasets qdrant-client sentence-transformers langchain-text-splitters torch tqdm python-dotenv
+```
+5. **Run Ingestion Script:**
+```powershell
+   python scripts/ingest_caselaw.py
+```
+   *(Takes ~30-45 minutes on a modern CPU, processes 50,000 cases).*
+6. **Start app** - RAG now works!
 
 ## API Endpoints
 

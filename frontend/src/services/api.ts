@@ -129,3 +129,49 @@ export async function retrieveAuthorities(
     throw new Error(extractMessage(error));
   }
 }
+
+// ── Continuous Debate Chat ────────────────────────────────────────────────────
+export interface ChatMessage {
+  role: 'user' | 'opponent';
+  content: string;
+}
+
+export interface WeaknessAnalysisResult {
+  weaknesses: string[];
+  improvement_tips: string[];
+}
+
+/**
+ * Returns an EventSource-compatible URL pattern.
+ * The actual SSE streaming for /api/generate-opposition-v2 is done via fetch + ReadableStream
+ * in the simulation page, this helper builds the request body.
+ */
+export function buildSimulationPayload(
+  caseFacts: StructuredCaseV2,
+  chatHistory: ChatMessage[],
+) {
+  return {
+    case_facts: caseFacts,
+    chat_history: chatHistory,
+  };
+}
+
+/**
+ * POST /api/analyze-weaknesses
+ * Sends the full debate transcript and receives the strategic weakness analysis.
+ */
+export async function analyzeWeaknesses(
+  caseFacts: StructuredCaseV2,
+  chatHistory: ChatMessage[],
+): Promise<WeaknessAnalysisResult> {
+  try {
+    const { data } = await client.post<WeaknessAnalysisResult>('/api/analyze-weaknesses', {
+      case_facts: caseFacts,
+      chat_history: chatHistory,
+    });
+    return data;
+  } catch (error) {
+    throw new Error(extractMessage(error));
+  }
+}
+

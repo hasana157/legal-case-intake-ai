@@ -7,7 +7,7 @@
 import os
 import json
 import logging
-from typing import AsyncGenerator, List
+from typing import AsyncGenerator, List, Any
 from groq import AsyncGroq, APIError, RateLimitError, APITimeoutError
 from groq.types.chat import ChatCompletionMessageParam
 
@@ -40,13 +40,12 @@ STRICT GROUNDING RULES:
 3. Every argument MUST cite at least one of the provided authorities.
 
 OUTPUT FORMAT:
-Produce a JSON array containing between 3 and 6 arguments.
-At least one argument must be "procedural" and at least one must be "substantive" (where authorities support it).
+Produce a JSON array containing EXACTLY ONE argument representing your current statement in this debate.
 Do not output markdown code blocks (e.g., ```json), just the raw JSON array.
 
 [
   {
-    "claim_text": "Detailed text of the argument, drafted persuasively.",
+    "claim_text": "Detailed text of the argument, drafted persuasively. If a DEBATE HISTORY is provided, you must reply directly to the plaintiff's latest response, defending your position or exposing a weakness in their stance.",
     "supporting_authority": [
       {
         "citation": "Exact citation string from the retrieved authorities"
@@ -67,6 +66,7 @@ def _get_async_groq_client() -> AsyncGroq:
 def _build_messages(
     structured_case: StructuredCaseV2, 
     retrieved_authorities: List[RetrievedAuthorityV2],
+    chat_history: List[Any] = None,
     is_retry: bool = False
 ) -> List[ChatCompletionMessageParam]:
     
@@ -88,6 +88,16 @@ def _build_messages(
     
     sys_prompt += f"\n\nRETRIEVED AUTHORITIES:\n{auth_block}"
     
+    if chat_history:
+        history_lines = []
+        for msg in chat_history:
+            role = getattr(msg, "role", None) or msg.get("role")
+            content = getattr(msg, "content", None) or msg.get("content")
+            role_label = "Opposing Counsel (You)" if role == "opponent" else "Plaintiff (User)"
+            history_lines.append(f"{role_label}: {content}")
+        sys_prompt += "\n\nDEBATE HISTORY:\n" + "\n".join(history_lines)
+        sys_prompt += "\n\nNow, generate Opposing Counsel's next argument/rebuttal in the JSON format, responding directly to the Plaintiff's latest counter-argument."
+    
     if is_retry:
         sys_prompt += "\n\nCRITICAL RETRY INSTRUCTION: Your previous response contained fabricated or slightly mismatched citations. You MUST ensure every citation matches the provided authorities exactly character-for-character."
 
@@ -107,13 +117,14 @@ def _build_messages(
 async def generate_opposing_arguments_stream(
     structured_case: StructuredCaseV2,
     retrieved_authorities: List[RetrievedAuthorityV2],
+    chat_history: List[Any] = None,
     is_retry: bool = False
 ) -> AsyncGenerator[str, None]:
     """
     Streams the response from Groq. Yields raw text deltas.
     """
     client = _get_async_groq_client()
-    messages = _build_messages(structured_case, retrieved_authorities, is_retry)
+    messages = _build_messages(structured_case, retrieved_authorities, chat_history, is_retry)
     
     try:
         stream = await client.chat.completions.create(
@@ -231,3 +242,70 @@ async def generate_rebuttal_hints(argument_text: str) -> str:
         # CRITIC 3: do NOT log the exception message — could contain argument text context
         logger.error("Rebuttal hints error | model=%s", GROQ_GENERATION_MODEL)
         return "Could not generate hints at this time. Please try again."
+
+# =============================================================================
+# Weaknesses & Improvement Strategy Analysis LLM
+# =============================================================================
+
+_WEAKNESSES_SYSTEM_PROMPT = """\
+You are a senior litigation strategist reviewing a debate history between a self-represented litigant (Plaintiff) and opposing counsel (Defendant).
+Identify the top 3 weaknesses in the user's arguments. Provide actionable advice on how to overcome these weaknesses in actual court.
+
+OUTPUT FORMAT:
+Return a JSON object with two fields:
+- "weaknesses": an array of strings (the top 3 weaknesses)
+- "improvement_tips": an array of strings (actionable advice for each weakness)
+
+Do not output markdown code blocks (e.g. ```json), just the raw JSON.
+"""
+
+async def analyze_weaknesses(case_facts: StructuredCaseV2, chat_history: List[Any]) -> dict:
+    """
+    Reviews the debate history and returns strategic weaknesses and actionable tips.
+    """
+    client = _get_async_groq_client()
+    
+    history_lines = []
+    for msg in chat_history:
+        role = getattr(msg, "role", None) or msg.get("role")
+        content = getattr(msg, "content", None) or msg.get("content")
+        role_label = "Opposing Counsel" if role == "opponent" else "Plaintiff (User)"
+        history_lines.append(f"{role_label}: {content}")
+    history_text = "\n".join(history_lines)
+    
+    user_content = (
+        f"Case Facts:\n"
+        f"{json.dumps(case_facts.disputed_facts, indent=2)}\n\n"
+        f"Debate Transcript:\n"
+        f"{history_text}\n"
+    )
+    
+    messages = [
+        {"role": "system", "content": _WEAKNESSES_SYSTEM_PROMPT},
+        {"role": "user", "content": user_content}
+    ]
+    
+    try:
+        response = await client.chat.completions.create(
+            model=GROQ_GENERATION_MODEL,
+            messages=messages,
+            temperature=0.3,
+            max_tokens=1000,
+            response_format={"type": "json_object"}
+        )
+        return json.loads(response.choices[0].message.content)
+    except Exception as e:
+        logger.error(f"Error in weaknesses analysis: {e}")
+        return {
+            "weaknesses": [
+                "Could not complete strategic analysis due to a temporary service error.",
+                "Ensure your arguments reference specific dates and statutory periods.",
+                "Verify whether proper written notice was provided to the opposing party."
+            ],
+            "improvement_tips": [
+                "Try running the concluding analysis again in a few moments.",
+                "Review the applicable state laws for security deposits or your specific claim type.",
+                "Gather all communications, emails, or text messages showing notice was sent on time."
+            ]
+        }
+

@@ -78,7 +78,7 @@ from api.models.retrieval import RetrievalResponse
 from api.services.case_parser import extract_case_facts
 from api.services.jurisdiction_validator import validate_jurisdiction
 from api.services.retrieval_service import retrieve_authorities
-from api.services.llm_service import generate_opposing_arguments_stream, generate_rebuttal_hints
+from api.services.llm_service import generate_opposing_arguments_stream, generate_rebuttal_hints, analyze_weaknesses
 from api.services.citation_verifier import verify_citations
 
 # ── Rate limiter ──────────────────────────────────────────────────────────────
@@ -564,6 +564,26 @@ async def retrieve_authorities_route(
         raise HTTPException(status_code=500, detail=str(e))
 
 # =============================================================================
+# V2 Chat & Analysis Models
+# =============================================================================
+
+class ChatMessage(BaseModel):
+    role: str # "user" or "opponent"
+    content: str
+
+class SimulationRequest(BaseModel):
+    case_facts: StructuredCaseV2
+    chat_history: List[ChatMessage] = Field(default_factory=list)
+
+class WeaknessAnalysisRequest(BaseModel):
+    case_facts: StructuredCaseV2
+    chat_history: List[ChatMessage]
+
+class WeaknessAnalysisResponse(BaseModel):
+    weaknesses: List[str]
+    improvement_tips: List[str]
+
+# =============================================================================
 # /api/generate-opposition-v2 — Milestone 4 (SSE streaming & verification)
 # Milestone 6: Rate limited, narrative sanitized, Qdrant fallback hardened.
 # =============================================================================
@@ -575,16 +595,19 @@ async def retrieve_authorities_route(
 )
 async def generate_opposition_v2(
     request: Request,
-    structured_case: StructuredCaseV2,
+    payload: SimulationRequest,
 ):
     """
-    Generative AI core (SSE streaming).
+    Generative AI core (SSE streaming) with continuous chat support.
     — Rate limited: 5 requests/minute per IP (Groq free tier protection).
     — Narrative sanitised against prompt injection before LLM call.
     — Qdrant downtime handled gracefully (returns empty authority set + warning).
     — Groq errors surface as calm, non-alarming user-facing SSE error events.
     CRITIC 3: No case content is ever logged; only metadata (case_id, g_v, latency).
     """
+    structured_case = payload.case_facts
+    chat_history = payload.chat_history
+
     # Apply rate limit if slowapi is available
     if _RATE_LIMIT_AVAILABLE and limiter:
         try:
@@ -640,7 +663,9 @@ async def generate_opposition_v2(
             
             # Helper to stream and accumulate
             async def _run_generation(is_retry=False):
-                async for chunk in generate_opposing_arguments_stream(structured_case, authorities, is_retry=is_retry):
+                async for chunk in generate_opposing_arguments_stream(
+                    structured_case, authorities, chat_history=chat_history, is_retry=is_retry
+                ):
                     # Send delta event
                     yield f"event: delta\ndata: {json.dumps({'text': chunk})}\n\n"
             
@@ -649,8 +674,8 @@ async def generate_opposition_v2(
             async for event_str in _run_generation(is_retry=False):
                 if event_str.startswith("event: delta"):
                     # parse out the delta to accumulate
-                    payload = json.loads(event_str.replace("event: delta\ndata: ", "").strip())
-                    full_text += payload.get("text", "")
+                    payload_data = json.loads(event_str.replace("event: delta\ndata: ", "").strip())
+                    full_text += payload_data.get("text", "")
                 yield event_str
                 
             # Verification phase (C1-C4)
@@ -675,8 +700,8 @@ async def generate_opposition_v2(
                     full_text_retry = ""
                     async for event_str in _run_generation(is_retry=True):
                         if event_str.startswith("event: delta"):
-                            payload = json.loads(event_str.replace("event: delta\ndata: ", "").strip())
-                            full_text_retry += payload.get("text", "")
+                            payload_data_retry = json.loads(event_str.replace("event: delta\ndata: ", "").strip())
+                            full_text_retry += payload_data_retry.get("text", "")
                         yield event_str
                         
                     # Verify again
@@ -730,6 +755,33 @@ async def generate_opposition_v2(
             "X-Accel-Buffering": "no"
         }
     )
+
+# =============================================================================
+# /api/analyze-weaknesses — Strategic Review at End of Debate
+# =============================================================================
+
+@app.post(
+    "/api/analyze-weaknesses",
+    response_model=WeaknessAnalysisResponse,
+    tags=["simulation"],
+    summary="Analyze user's performance and identify 3 key weaknesses",
+)
+async def analyze_weaknesses_route(
+    payload: WeaknessAnalysisRequest
+) -> WeaknessAnalysisResponse:
+    """
+    Strategic litigation review of the entire debate history.
+    """
+    logger.info("analyze-weaknesses called | case_id=%s", payload.case_facts.case_id)
+    try:
+        analysis = await analyze_weaknesses(payload.case_facts, payload.chat_history)
+        return WeaknessAnalysisResponse(
+            weaknesses=analysis.get("weaknesses", []),
+            improvement_tips=analysis.get("improvement_tips", [])
+        )
+    except Exception as e:
+        logger.error(f"Error in analyze-weaknesses route: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 # =============================================================================
 # /api/rebuttal-hints — Milestone 5 (Lightweight LLM Helper)

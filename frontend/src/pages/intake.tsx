@@ -1,136 +1,139 @@
-import React, { useState } from 'react';
+// =============================================================================
+// frontend/src/pages/intake.tsx
+// Live intake page — calls /api/intake via CaseIntakeForm (WizardShell) and
+// automatically routes to /simulation once structured case facts are returned.
+// No JSON debug output, no Groq confidence scores, no pillar labels.
+// =============================================================================
+
+import React, { useState, useCallback } from 'react';
 import Head from 'next/head';
-import Image from 'next/image';
 import { useRouter } from 'next/router';
-import { Button } from '@/components/ui/Button';
-import { ProgressBar } from '@/components/ui/ProgressBar';
-import { TextArea } from '@/components/ui/TextArea';
-import styles from './intake.module.css';
+import CaseIntakeForm from '@/components/CaseIntakeForm';
+import { submitCaseIntakeV2 } from '@/services/api';
+import { useSession } from '@/context/SessionContext';
+import type { RawIntake } from '@/types/intake_v2';
 
 export default function IntakePage() {
   const router = useRouter();
-  const step = parseInt(router.query.step as string) || 1;
-  const [narrative, setNarrative] = useState('');
+  const { setStructuredCase } = useSession();
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const nextStep = () => {
-    if (step < 4) router.push(`/intake?step=${step + 1}`);
-    else router.push('/simulation');
-  };
-
-  const prevStep = () => {
-    if (step > 1) router.push(`/intake?step=${step - 1}`);
-  };
+  const handleSubmit = useCallback(async (data: RawIntake) => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const result = await submitCaseIntakeV2(data);
+      // Save structured case to session — this is the only data the sim page needs
+      setStructuredCase(result.structured_case);
+      // Auto-navigate to simulation without exposing any raw data to the user
+      await router.push('/simulation');
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Something went wrong. Please try again.';
+      setError(msg);
+      setIsLoading(false);
+    }
+  }, [router, setStructuredCase]);
 
   return (
-    <div className={styles.container}>
+    <>
       <Head>
-        <title>Case Intake - Simulator</title>
+        <title>Case Intake – Opposing Counsel Simulator</title>
+        <meta
+          name="description"
+          content="Describe your legal situation and let our AI prepare you to face the strongest counterarguments."
+        />
       </Head>
 
-      <div className={styles.card}>
-        <ProgressBar currentStep={step} totalSteps={4} />
+      {/* Full-page gradient background */}
+      <div
+        style={{
+          minHeight: '100vh',
+          background: 'linear-gradient(135deg, #0a0c14 0%, #0d1226 60%, #0a0c14 100%)',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '24px 16px',
+        }}
+      >
+        {/* Error banner */}
+        {error && (
+          <div
+            role="alert"
+            style={{
+              width: '100%',
+              maxWidth: 720,
+              marginBottom: 20,
+              padding: '14px 20px',
+              background: 'rgba(239,83,80,0.12)',
+              border: '1px solid rgba(239,83,80,0.4)',
+              borderRadius: 12,
+              color: '#ef9a9a',
+              fontSize: 14,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 10,
+            }}
+          >
+            <span style={{ fontSize: 18 }}>⚠️</span>
+            <span>{error}</span>
+            <button
+              onClick={() => setError(null)}
+              style={{
+                marginLeft: 'auto',
+                background: 'none',
+                border: 'none',
+                color: '#ef9a9a',
+                cursor: 'pointer',
+                fontSize: 18,
+                lineHeight: 1,
+              }}
+              aria-label="Dismiss error"
+            >
+              ×
+            </button>
+          </div>
+        )}
 
-        {step === 1 && (
-          <div className={`${styles.stepContent} animate-slide-in`}>
-            <div className={styles.characterIntro}>
-              <Image src="/opponent_avatar.png" alt="AI Opponent" width={60} height={60} className={styles.introAvatar} />
-              <div className={styles.introBubble}>
-                &quot;Tell me about your case. I&apos;m here to help you prepare. Start with what happened.&quot;
-              </div>
-            </div>
-
-            <TextArea 
-              placeholder="I rented an apartment in 2024..."
-              maxLength={1500}
-              value={narrative}
-              onChange={(e) => setNarrative(e.target.value)}
+        {/* Loading overlay */}
+        {isLoading && (
+          <div
+            style={{
+              position: 'fixed',
+              inset: 0,
+              background: 'rgba(10,12,20,0.85)',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              zIndex: 9999,
+              backdropFilter: 'blur(4px)',
+            }}
+          >
+            <div
+              style={{
+                width: 56,
+                height: 56,
+                borderRadius: '50%',
+                border: '4px solid rgba(66,165,245,0.2)',
+                borderTop: '4px solid #42A5F5',
+                animation: 'spin 0.9s linear infinite',
+                marginBottom: 20,
+              }}
             />
-
-            <div className={styles.tips}>
-              <h4>💡 What to include:</h4>
-              <ul>
-                <li>Key dates (when did X happen?)</li>
-                <li>Who is involved (you, opponent, witnesses)</li>
-                <li>What is disputed (what does opponent claim?)</li>
-                <li>What evidence do you have? (documents, proof)</li>
-              </ul>
-            </div>
+            <p style={{ color: '#90caf9', fontSize: 16, fontWeight: 500 }}>
+              Analysing your case…
+            </p>
+            <p style={{ color: '#546e7a', fontSize: 13, marginTop: 6 }}>
+              This takes a few seconds.
+            </p>
+            <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
           </div>
         )}
 
-        {step === 2 && (
-          <div className={`${styles.stepContent} animate-slide-in`}>
-            <h3>What type of case is this?</h3>
-            <select className={styles.select}>
-              <option>🏠 Housing / Tenancy Dispute</option>
-              <option>👨⚖️ Small Claims</option>
-              <option>👪 Family Law Dispute</option>
-              <option>⚠️ Consumer Dispute</option>
-              <option>📋 Other (specify)</option>
-            </select>
-
-            <h3 className={styles.mt4}>Which jurisdiction?</h3>
-            <select className={styles.select}>
-              <option>Ohio (State)</option>
-              <option>California (State)</option>
-              <option>New York (State)</option>
-            </select>
-          </div>
-        )}
-
-        {step === 3 && (
-          <div className={`${styles.stepContent} animate-slide-in`}>
-            <p>&quot;Thanks! I&apos;ve identified key details from your narrative. Please confirm or edit:&quot;</p>
-            
-            <div className={styles.summaryBox}>
-              <h4>📅 DATE RANGE</h4>
-              <p>From: 2024-01-15 To: 2024-06-20</p>
-              
-              <h4>👥 PARTIES INVOLVED</h4>
-              <p>Plaintiff: You<br/>Defendant: Sarah&apos;s Apartments LLC</p>
-              
-              <h4>📚 DISPUTED FACTS</h4>
-              <ul>
-                <li><input type="checkbox" defaultChecked /> Wall damage severity</li>
-                <li><input type="checkbox" defaultChecked /> Responsibility for damage</li>
-              </ul>
-              
-              <h4>📎 AVAILABLE EVIDENCE</h4>
-              <ul>
-                <li><input type="checkbox" defaultChecked /> Photos of walls</li>
-                <li><input type="checkbox" defaultChecked /> Lease agreement</li>
-              </ul>
-            </div>
-          </div>
-        )}
-
-        {step === 4 && (
-          <div className={`${styles.stepContent} animate-slide-in`}>
-            <h2 className={styles.successText}>✅ Your case is ready!</h2>
-            
-            <div className={styles.summaryBox}>
-              <h3>CASE SUMMARY</h3>
-              <p><strong>Housing Dispute (Ohio State Court)</strong></p>
-              <p>Your Position: &quot;I did not damage the walls...&quot;</p>
-              <p>Evidence Strength: 6/10</p>
-            </div>
-
-            <div className={styles.characterIntro}>
-              <Image src="/opponent_avatar.png" alt="AI Opponent" width={60} height={60} className={styles.introAvatar} />
-              <div className={styles.introBubble}>
-                &quot;I&apos;m opposing counsel. I&apos;ll present the strongest counterarguments you&apos;re likely to face. Ready to practice?&quot;
-              </div>
-            </div>
-          </div>
-        )}
-
-        <div className={styles.actions}>
-          {step > 1 && <Button variant="secondary" onClick={prevStep}>Previous</Button>}
-          <Button onClick={nextStep} className={styles.nextBtn}>
-            {step === 4 ? 'START PRACTICE' : 'Next →'}
-          </Button>
-        </div>
+        <CaseIntakeForm onSubmit={handleSubmit} isLoading={isLoading} />
       </div>
-    </div>
+    </>
   );
 }

@@ -14,11 +14,37 @@ interface SessionState {
 const SessionContext = createContext<SessionState | undefined>(undefined);
 
 export function SessionProvider({ children }: { children: ReactNode }) {
-  // Purely in-memory state, strictly adhering to NFR-3. 
-  // No localStorage or sessionStorage is used.
   const [hasAcceptedDisclaimer, setHasAcceptedDisclaimer] = useState<boolean>(false);
   const [structuredCase, setStructuredCase] = useState<StructuredCaseV2 | null>(null);
   const [rebuttals, setRebuttals] = useState<Record<string, string>>({});
+
+  // Load from localStorage on mount
+  React.useEffect(() => {
+    try {
+      const stored = localStorage.getItem('sim_session');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (parsed.hasAcceptedDisclaimer) setHasAcceptedDisclaimer(parsed.hasAcceptedDisclaimer);
+        if (parsed.structuredCase) setStructuredCase(parsed.structuredCase);
+        if (parsed.rebuttals) setRebuttals(parsed.rebuttals);
+      }
+    } catch (e) {
+      console.error('Failed to load session', e);
+    }
+  }, []);
+
+  // Save to localStorage on change
+  React.useEffect(() => {
+    try {
+      localStorage.setItem('sim_session', JSON.stringify({
+        hasAcceptedDisclaimer,
+        structuredCase,
+        rebuttals
+      }));
+    } catch (e) {
+      console.error('Failed to save session', e);
+    }
+  }, [hasAcceptedDisclaimer, structuredCase, rebuttals]);
 
   const setRebuttal = (id: string, text: string) => {
     setRebuttals(prev => ({ ...prev, [id]: text }));
@@ -28,6 +54,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     setHasAcceptedDisclaimer(false);
     setStructuredCase(null);
     setRebuttals({});
+    localStorage.removeItem('sim_session');
   };
 
   return (

@@ -1,0 +1,47 @@
+.container {
+  position: relative;
+  width: 100%;
+}
+
+.textarea {
+  width: 100%;
+  min-height: 120px;
+  padding: var(--space-md);
+  font-family: var(--font-body);
+  font-size: var(--font-size-body);
+  color: var(--color-text-dark);
+  background-color: var(--color-card-white);
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-md);
+  resize: vertical;
+  transition: all 0.15s ease-in-out;
+  outline: none;
+}
+
+.textarea:focus {
+  border-color: var(--color-primary-user);
+  background-color: var(--color-box-bg);
+  box-shadow: 0 0 0 8px rgba(66, 165, 245, 0.1);
+}
+
+.textarea::placeholder {
+  color: var(--color-text-light);
+}
+
+.counter {
+  position: absolute;
+  bottom: var(--space-sm);
+  right: var(--space-md);
+  font-size: var(--font-size-tiny);
+  color: var(--color-text-light);
+  pointer-events: none;
+}
+
+.nearLimit {
+  color: var(--color-accent-warning);
+}
+
+.atLimit {
+  color: var(--color-error-red);
+  font-weight: 700;
+}

@@ -1,0 +1,119 @@
+.container {
+  min-height: 100vh;
+  background: linear-gradient(135deg, var(--color-neutral-bg), #E8EEFA);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: var(--space-xl) var(--space-md);
+}
+
+.main {
+  max-width: 900px;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  animation: fadeIn 0.4s ease-out;
+}
+
+.header {
+  margin-bottom: var(--space-2xl);
+}
+
+.title {
+  font-size: var(--font-size-hero);
+  color: var(--color-text-dark);
+  margin-bottom: var(--space-sm);
+}
+
+.subtitle {
+  font-size: var(--font-size-h3);
+  color: var(--color-text-light);
+  font-family: var(--font-body);
+}
+
+.valueProps {
+  display: flex;
+  gap: var(--space-lg);
+  width: 100%;
+  margin-bottom: var(--space-2xl);
+}
+
+@media (max-width: 768px) {
+  .valueProps {
+    flex-direction: column;
+  }
+}
+
+.card {
+  flex: 1;
+  background-color: var(--color-card-white);
+  border-radius: var(--radius-lg);
+  padding: var(--space-lg);
+  box-shadow: var(--shadow-md);
+  border: 1px solid var(--color-border);
+}
+
+.cardIcon {
+  font-size: 40px;
+  margin-bottom: var(--space-md);
+}
+
+.card h3 {
+  font-size: var(--font-size-h3);
+  margin-bottom: var(--space-xs);
+  color: var(--color-text-dark);
+}
+
+.card p {
+  color: var(--color-text-light);
+  font-size: var(--font-size-body);
+}
+
+.heroImage {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2xl);
+  margin-bottom: var(--space-2xl);
+}
+
+.heroAvatar {
+  width: 150px;
+  height: 150px;
+  border-radius: 50%;
+  box-shadow: var(--shadow-md);
+  object-fit: cover;
+}
+
+.heroVersus {
+  font-family: var(--font-display);
+  font-size: var(--font-size-h2);
+  font-weight: 700;
+  color: var(--color-text-light);
+}
+
+.ctaContainer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-md);
+}
+
+.ctaButton {
+  animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+  0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(66, 165, 245, 0.4); }
+  50% { transform: scale(1.05); box-shadow: 0 0 0 10px rgba(66, 165, 245, 0); }
+  100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(66, 165, 245, 0); }
+}
+
+.demoLink {
+  color: var(--color-text-light);
+  text-decoration: underline;
+  cursor: pointer;
+  font-size: var(--font-size-small);
+}

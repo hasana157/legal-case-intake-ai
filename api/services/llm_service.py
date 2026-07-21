@@ -7,7 +7,11 @@
 import os
 import json
 import logging
+<<<<<<< HEAD
 from typing import AsyncGenerator, List, Any
+=======
+from typing import AsyncGenerator, List, Dict
+>>>>>>> 9cca5f7 (feat: redesign frontend and add new components)
 from groq import AsyncGroq, APIError, RateLimitError, APITimeoutError
 from groq.types.chat import ChatCompletionMessageParam
 
@@ -32,7 +36,8 @@ MAX_TOKENS = 1500
 
 _ADVERSARIAL_SYSTEM_PROMPT = """\
 You are an expert opposing counsel representing the opposing party in a '{claim_type}' dispute in '{jurisdiction}'.
-Your objective is to generate the strongest realistic counter-arguments, procedural objections, and counterevidence against the plaintiff's claim.
+Your objective is to continue a realistic debate as opposing counsel. Generate the strongest realistic counter-arguments, procedural objections, and counterevidence against the plaintiff's claim.
+If conversation history is provided, respond directly to the user's latest rebuttal and avoid repeating arguments already made unless you are sharpening or challenging that rebuttal.
 
 STRICT GROUNDING RULES:
 1. You may ONLY use the legal authorities explicitly provided in the RETRIEVED AUTHORITIES section below.
@@ -66,7 +71,11 @@ def _get_async_groq_client() -> AsyncGroq:
 def _build_messages(
     structured_case: StructuredCaseV2, 
     retrieved_authorities: List[RetrievedAuthorityV2],
+<<<<<<< HEAD
     chat_history: List[Any] = None,
+=======
+    chat_history: List[Dict[str, str]] | None = None,
+>>>>>>> 9cca5f7 (feat: redesign frontend and add new components)
     is_retry: bool = False
 ) -> List[ChatCompletionMessageParam]:
     
@@ -87,6 +96,12 @@ def _build_messages(
     )
     
     sys_prompt += f"\n\nRETRIEVED AUTHORITIES:\n{auth_block}"
+    if chat_history:
+        history_lines = []
+        for msg in chat_history[-12:]:
+            role = "Self-represented litigant" if msg.get("role") == "user" else "Opposing counsel"
+            history_lines.append(f"{role}: {msg.get('content', '')}")
+        sys_prompt += "\n\nDEBATE HISTORY SO FAR:\n" + "\n\n".join(history_lines)
     
     if chat_history:
         history_lines = []
@@ -106,7 +121,7 @@ def _build_messages(
         f"{json.dumps(structured_case.disputed_facts, indent=2)}\n\n"
         f"Available Evidence:\n"
         f"{json.dumps([e.model_dump() for e in structured_case.available_evidence], indent=2)}\n\n"
-        f"Generate the JSON array of opposing arguments."
+        f"Generate the next JSON array of opposing arguments."
     )
 
     return [
@@ -117,7 +132,11 @@ def _build_messages(
 async def generate_opposing_arguments_stream(
     structured_case: StructuredCaseV2,
     retrieved_authorities: List[RetrievedAuthorityV2],
+<<<<<<< HEAD
     chat_history: List[Any] = None,
+=======
+    chat_history: List[Dict[str, str]] | None = None,
+>>>>>>> 9cca5f7 (feat: redesign frontend and add new components)
     is_retry: bool = False
 ) -> AsyncGenerator[str, None]:
     """
@@ -243,6 +262,7 @@ async def generate_rebuttal_hints(argument_text: str) -> str:
         logger.error("Rebuttal hints error | model=%s", GROQ_GENERATION_MODEL)
         return "Could not generate hints at this time. Please try again."
 
+<<<<<<< HEAD
 # =============================================================================
 # Weaknesses & Improvement Strategy Analysis LLM
 # =============================================================================
@@ -309,3 +329,45 @@ async def analyze_weaknesses(case_facts: StructuredCaseV2, chat_history: List[An
             ]
         }
 
+=======
+
+async def analyze_simulation_weaknesses(
+    case_facts: dict,
+    chat_history: List[Dict[str, str]],
+) -> dict:
+    """Return JSON analysis of the user's debate performance."""
+    client = _get_async_groq_client()
+    messages = [
+        {
+            "role": "system",
+            "content": (
+                "You are a senior litigation strategist. Review the following debate "
+                "history between a self-represented litigant and opposing counsel. "
+                "Identify the top 3 weaknesses in the user's arguments. Provide "
+                "actionable advice on how to overcome these weaknesses in actual court. "
+                "Return raw JSON only with this exact shape: "
+                "{\"weaknesses\":[\"...\"],\"improvement_tips\":[\"...\"]}"
+            ),
+        },
+        {
+            "role": "user",
+            "content": json.dumps(
+                {"case_facts": case_facts, "chat_history": chat_history},
+                indent=2,
+            ),
+        },
+    ]
+
+    response = await client.chat.completions.create(
+        model=GROQ_GENERATION_MODEL,
+        messages=messages,
+        temperature=0.2,
+        max_tokens=700,
+    )
+    content = (response.choices[0].message.content or "").strip()
+    if content.startswith("```json"):
+        content = content[7:]
+    if content.endswith("```"):
+        content = content[:-3]
+    return json.loads(content)
+>>>>>>> 9cca5f7 (feat: redesign frontend and add new components)

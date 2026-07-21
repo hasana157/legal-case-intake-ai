@@ -10,6 +10,7 @@ from dotenv import load_dotenv
 # Try importing the required ML libraries
 try:
     from datasets import load_dataset
+    from datasets.exceptions import DatasetNotFoundError
     from sentence_transformers import SentenceTransformer
     from qdrant_client import QdrantClient
     from qdrant_client.models import (
@@ -80,12 +81,25 @@ def main():
     embedding_model = SentenceTransformer(EMBEDDING_MODEL)
     
     print("\n3. Loading Harvard CAP dataset stream...")
-    dataset = load_dataset(
-        "free-law/Caselaw_Access_Project",
-        split="train",
-        streaming=True,
-        trust_remote_code=True,
-    )
+    hf_token = os.environ.get("HF_TOKEN") or os.environ.get("HUGGINGFACE_HUB_TOKEN")
+    try:
+        dataset = load_dataset(
+            "free-law/Caselaw_Access_Project",
+            split="train",
+            streaming=True,
+            trust_remote_code=True,
+            token=hf_token or True,
+        )
+    except DatasetNotFoundError:
+        print("\nHarvard CAP is a gated Hugging Face dataset.")
+        print("Fix:")
+        print("  1. Open https://huggingface.co/datasets/free-law/Caselaw_Access_Project")
+        print("  2. Log in and request/accept access to the dataset.")
+        print("  3. Create a Hugging Face access token.")
+        print("  4. Add this to your .env file:")
+        print("       HF_TOKEN=hf_your_token_here")
+        print("  5. Run this script again.")
+        return
     
     text_splitter = RecursiveCharacterTextSplitter(
         chunk_size=CHUNK_SIZE_CHARS,

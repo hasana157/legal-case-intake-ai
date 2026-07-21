@@ -1,11 +1,29 @@
 import React, { createContext, useContext, useState, ReactNode } from 'react';
 import type { StructuredCaseV2 } from '@/types/intake_v2';
+import type { CompletePayload } from '@/components/simulation/StreamingArgumentDisplay';
+
+export interface DebateMessage {
+  sender: 'user' | 'opponent';
+  text: string;
+  citations?: Array<{ citation: string; unverified?: boolean }>;
+}
+
+export interface WeaknessAnalysis {
+  weaknesses: string[];
+  improvement_tips: string[];
+}
 
 interface SessionState {
   hasAcceptedDisclaimer: boolean;
   setHasAcceptedDisclaimer: (val: boolean) => void;
   structuredCase: StructuredCaseV2 | null;
   setStructuredCase: (val: StructuredCaseV2 | null) => void;
+  simulationResult: CompletePayload | null;
+  setSimulationResult: (val: CompletePayload | null) => void;
+  messages: DebateMessage[];
+  setMessages: (val: DebateMessage[]) => void;
+  analysis: WeaknessAnalysis | null;
+  setAnalysis: (val: WeaknessAnalysis | null) => void;
   rebuttals: Record<string, string>;
   setRebuttal: (id: string, text: string) => void;
   clearSession: () => void;
@@ -16,6 +34,9 @@ const SessionContext = createContext<SessionState | undefined>(undefined);
 export function SessionProvider({ children }: { children: ReactNode }) {
   const [hasAcceptedDisclaimer, setHasAcceptedDisclaimer] = useState<boolean>(false);
   const [structuredCase, setStructuredCase] = useState<StructuredCaseV2 | null>(null);
+  const [simulationResult, setSimulationResult] = useState<CompletePayload | null>(null);
+  const [messages, setMessages] = useState<DebateMessage[]>([]);
+  const [analysis, setAnalysis] = useState<WeaknessAnalysis | null>(null);
   const [rebuttals, setRebuttals] = useState<Record<string, string>>({});
 
   // Load from localStorage on mount
@@ -26,6 +47,9 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         const parsed = JSON.parse(stored);
         if (parsed.hasAcceptedDisclaimer) setHasAcceptedDisclaimer(parsed.hasAcceptedDisclaimer);
         if (parsed.structuredCase) setStructuredCase(parsed.structuredCase);
+        if (parsed.simulationResult) setSimulationResult(parsed.simulationResult);
+        if (parsed.messages) setMessages(parsed.messages);
+        if (parsed.analysis) setAnalysis(parsed.analysis);
         if (parsed.rebuttals) setRebuttals(parsed.rebuttals);
       }
     } catch (e) {
@@ -39,12 +63,15 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       localStorage.setItem('sim_session', JSON.stringify({
         hasAcceptedDisclaimer,
         structuredCase,
+        simulationResult,
+        messages,
+        analysis,
         rebuttals
       }));
     } catch (e) {
       console.error('Failed to save session', e);
     }
-  }, [hasAcceptedDisclaimer, structuredCase, rebuttals]);
+  }, [hasAcceptedDisclaimer, structuredCase, simulationResult, messages, analysis, rebuttals]);
 
   const setRebuttal = (id: string, text: string) => {
     setRebuttals(prev => ({ ...prev, [id]: text }));
@@ -53,6 +80,9 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const clearSession = () => {
     setHasAcceptedDisclaimer(false);
     setStructuredCase(null);
+    setSimulationResult(null);
+    setMessages([]);
+    setAnalysis(null);
     setRebuttals({});
     localStorage.removeItem('sim_session');
   };
@@ -63,6 +93,12 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       setHasAcceptedDisclaimer,
       structuredCase,
       setStructuredCase,
+      simulationResult,
+      setSimulationResult,
+      messages,
+      setMessages,
+      analysis,
+      setAnalysis,
       rebuttals,
       setRebuttal,
       clearSession

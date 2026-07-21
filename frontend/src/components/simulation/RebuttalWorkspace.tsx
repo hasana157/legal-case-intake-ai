@@ -5,7 +5,7 @@ import { DISCLAIMER_COMPACT } from '@/constants/legalNotices';
 import generatePdf from '@/services/pdfExport';
 
 export default function RebuttalWorkspace({ finalData }: { finalData: CompletePayload }) {
-  const { rebuttals, setRebuttal, structuredCase } = useSession();
+  const { rebuttals, setRebuttal, structuredCase, messages, analysis } = useSession();
   
   const [hintLoadingId, setHintLoadingId] = useState<string | null>(null);
   const [hints, setHints] = useState<Record<string, string>>({});
@@ -34,7 +34,7 @@ export default function RebuttalWorkspace({ finalData }: { finalData: CompletePa
 
   const handleExport = () => {
     if (!structuredCase) return;
-    generatePdf(structuredCase, finalData, rebuttals);
+    generatePdf(structuredCase, finalData, rebuttals, messages, analysis);
   };
 
   const totalArgs = finalData.arguments.length;

@@ -1,4 +1,8 @@
 /* ── Design Tokens (CSS Variables) ────────────────────────────────────────── */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
 :root {
   /* Colors */
   --color-primary-user: #42A5F5;        /* User/You */
@@ -127,6 +131,7 @@ h1, h2, h3, h4, h5, h6 {
   100% { box-shadow: 0 0 0 0 rgba(66, 165, 245, 0); }
 }
 
+<<<<<<< HEAD
 /* ── Avatar Animations ─────────────────────────────────────────────────────── */
 /* Idle breathing: gentle scale + opacity pulse */
 @keyframes avatarIdle {
@@ -218,6 +223,24 @@ h1, h2, h3, h4, h5, h6 {
   background: linear-gradient(135deg, rgba(239, 83, 80, 0.18), rgba(239, 83, 80, 0.08));
   border: 1px solid rgba(239, 83, 80, 0.35);
   border-radius: 18px 18px 18px 4px;
+=======
+@keyframes breathe {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-2px); }
+}
+
+@keyframes speak {
+  0%, 100% { transform: scale(1) translateY(0); }
+  50% { transform: scale(1.02) translateY(-1px); }
+}
+
+.avatar-idle {
+  animation: breathe 3s ease-in-out infinite;
+}
+
+.avatar-speaking {
+  animation: speak 0.3s ease-in-out infinite alternate;
+>>>>>>> 9cca5f7 (feat: redesign frontend and add new components)
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -226,5 +249,61 @@ h1, h2, h3, h4, h5, h6 {
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
+  }
+}
+
+@layer components {
+  .card {
+    @apply rounded-lg border border-navy-800 bg-navy-900 p-6 shadow-lg;
+  }
+
+  .card-glass {
+    @apply rounded-lg border border-navy-800 bg-navy-900/80 shadow-lg backdrop-blur;
+  }
+
+  .btn-primary {
+    @apply inline-flex items-center justify-center rounded-lg bg-gold-500 px-5 py-2.5 text-sm font-semibold text-navy-950 transition hover:bg-gold-400 focus:outline-none focus:ring-2 focus:ring-gold-300 focus:ring-offset-2 focus:ring-offset-navy-950 disabled:cursor-not-allowed disabled:opacity-60;
+  }
+
+  .btn-secondary {
+    @apply inline-flex items-center justify-center rounded-lg border border-navy-600 bg-navy-800 px-5 py-2.5 text-sm font-semibold text-navy-100 transition hover:bg-navy-700 focus:outline-none focus:ring-2 focus:ring-navy-400 focus:ring-offset-2 focus:ring-offset-navy-950 disabled:cursor-not-allowed disabled:opacity-60;
+  }
+
+  .btn-outline {
+    @apply inline-flex items-center justify-center rounded-lg border border-gold-500/50 px-3 py-2 font-semibold text-gold-300 transition hover:bg-gold-500/10 focus:outline-none focus:ring-2 focus:ring-gold-300 focus:ring-offset-2 focus:ring-offset-navy-950 disabled:cursor-not-allowed disabled:opacity-60;
+  }
+
+  .form-label {
+    @apply mb-1 block text-xs font-semibold uppercase tracking-wide text-navy-300;
+  }
+
+  .form-input,
+  .form-select,
+  .form-textarea {
+    @apply w-full rounded-lg border border-navy-700 bg-navy-950 px-3 py-2 text-sm text-navy-50 placeholder-navy-500 outline-none transition focus:border-gold-500 focus:ring-1 focus:ring-gold-500;
+  }
+
+  .form-textarea {
+    @apply min-h-[180px] resize-y leading-6;
+  }
+
+  .wizard-step-indicator {
+    @apply flex h-9 w-9 items-center justify-center rounded-full border text-sm font-bold transition;
+  }
+
+  .wizard-step-active {
+    @apply border-gold-400 bg-gold-500 text-navy-950;
+  }
+
+  .wizard-step-completed {
+    @apply border-green-400 bg-green-500/20 text-green-300;
+  }
+
+  .wizard-step-future {
+    @apply border-navy-700 bg-navy-900 text-navy-400;
+  }
+
+  .spinner {
+    @apply mr-2 inline-block h-4 w-4 animate-spin rounded-full border-2 border-navy-950 border-t-transparent;
   }
 }

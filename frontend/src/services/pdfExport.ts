@@ -2,6 +2,7 @@ import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import type { StructuredCaseV2 } from '@/types/intake_v2';
 import type { CompletePayload } from '@/components/simulation/StreamingArgumentDisplay';
+import type { DebateMessage, WeaknessAnalysis } from '@/context/SessionContext';
 import { DISCLAIMER_COMPACT } from '@/constants/legalNotices';
 import type { ChatMessage, WeaknessAnalysisResult } from '@/services/api';
 
@@ -10,7 +11,9 @@ import type { ChatMessage, WeaknessAnalysisResult } from '@/services/api';
 export default function generatePdf(
   structuredCase: StructuredCaseV2,
   simulationResult: CompletePayload,
-  rebuttals: Record<string, string>
+  rebuttals: Record<string, string>,
+  messages: DebateMessage[] = [],
+  analysis: WeaknessAnalysis | null = null,
 ) {
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
   const pageWidth = doc.internal.pageSize.width;
@@ -82,6 +85,29 @@ export default function generatePdf(
   }
   currentY += 5;
 
+<<<<<<< HEAD
+=======
+  if (messages.length > 0) {
+    addText('Chat Transcript', 16, true, [41, 128, 185]);
+    messages.forEach((message) => {
+      const label = message.sender === 'opponent' ? 'Opposing Counsel' : 'Your Rebuttal';
+      const color = message.sender === 'opponent' ? [200, 50, 50] : [41, 128, 185];
+      addText(`${label}:`, 11, true, color, 4);
+      addText(message.text || '[No text]', 10, false, [0, 0, 0], 6);
+      if (message.citations?.length) {
+        addText(
+          `Citations: ${message.citations.map(c => c.citation).join('; ')}`,
+          9,
+          false,
+          [90, 90, 90],
+          5,
+        );
+      }
+    });
+  }
+
+  // Iterating over opposing arguments
+>>>>>>> 9cca5f7 (feat: redesign frontend and add new components)
   simulationResult.arguments.forEach((arg, idx) => {
     checkPageBreak(20);
     addText(`Opposing Argument ${idx + 1} - ${arg.category.toUpperCase()} (${arg.confidence} Confidence)`, 14, true, [50, 50, 50]);
@@ -119,6 +145,23 @@ export default function generatePdf(
     currentY += 5;
   });
 
+<<<<<<< HEAD
+=======
+  if (analysis) {
+    checkPageBreak(30);
+    addText('Case Weaknesses & Strategy to Overcome', 16, true, [41, 128, 185]);
+    addText('Top Weaknesses:', 12, true, [50, 50, 50], 5);
+    analysis.weaknesses.forEach((weakness, index) => {
+      addText(`${index + 1}. ${weakness}`, 10, false, [0, 0, 0], 5);
+    });
+    addText('Improvement Tips:', 12, true, [50, 50, 50], 5);
+    analysis.improvement_tips.forEach((tip, index) => {
+      addText(`${index + 1}. ${tip}`, 10, false, [0, 0, 0], 5);
+    });
+  }
+
+  // End of Document
+>>>>>>> 9cca5f7 (feat: redesign frontend and add new components)
   const dateStr = new Date().toISOString().split('T')[0];
   doc.save(`hearing-rehearsal-guide-${structuredCase.claim_type}-${dateStr}.pdf`);
 }

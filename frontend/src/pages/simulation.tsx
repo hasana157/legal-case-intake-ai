@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 // =============================================================================
 // frontend/src/pages/simulation.tsx
 // Anime-style continuous debate arena.
@@ -5,8 +6,13 @@
 // =============================================================================
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+=======
+import React, { useEffect, useRef, useState } from 'react';
+>>>>>>> 9cca5f7 (feat: redesign frontend and add new components)
 import Head from 'next/head';
+import Image from 'next/image';
 import { useRouter } from 'next/router';
+<<<<<<< HEAD
 import { useSession } from '@/context/SessionContext';
 import { analyzeWeaknesses, buildSimulationPayload } from '@/services/api';
 import type { ChatMessage, WeaknessAnalysisResult } from '@/services/api';
@@ -63,6 +69,306 @@ function Avatar({
       >
         {isSpeaking ? '🎙 Speaking…' : label}
       </span>
+=======
+import { useSession, type DebateMessage, type WeaknessAnalysis } from '@/context/SessionContext';
+import type { CompletePayload } from '@/components/simulation/StreamingArgumentDisplay';
+import { CLAIM_TYPE_LABELS } from '@/types/intake_v2';
+
+export default function SimulationPage() {
+  const router = useRouter();
+  const {
+    structuredCase,
+    messages,
+    setMessages,
+    setSimulationResult,
+    setAnalysis,
+  } = useSession();
+  const [draft, setDraft] = useState('');
+  const [status, setStatus] = useState('');
+  const [isStreaming, setIsStreaming] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
+  const [analysisResult, setAnalysisResult] = useState<WeaknessAnalysis | null>(null);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const bottomRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages, isStreaming]);
+
+  useEffect(() => {
+    if (structuredCase && messages.length === 0 && !isStreaming) {
+      requestOpponentTurn([]);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [structuredCase]);
+
+  if (!structuredCase) {
+    return (
+      <div className="min-h-screen bg-navy-950 px-4 py-10 text-navy-50">
+        <Head><title>Practice Arena</title></Head>
+        <main className="mx-auto max-w-2xl card space-y-4">
+          <h1 className="text-2xl font-bold text-white">No case is ready yet</h1>
+          <p className="text-sm leading-6 text-navy-300">
+            Complete intake first so the practice arena can prepare your opponent.
+          </p>
+          <button type="button" className="btn-primary self-start" onClick={() => router.push('/intake')}>
+            Go to intake
+          </button>
+        </main>
+      </div>
+    );
+  }
+
+  const plaintiff = structuredCase.parties.find(p => p.role === 'plaintiff')?.name || 'You';
+  const defendant = structuredCase.parties.find(p => p.role === 'defendant')?.name || 'Opposing Party';
+
+  async function requestOpponentTurn(nextMessages: DebateMessage[]) {
+    if (!structuredCase) return;
+    setIsStreaming(true);
+    setErrorMsg('');
+    setStatus('Retrieving legal context...');
+
+    let streamText = '';
+    setMessages([...nextMessages, { sender: 'opponent', text: '', citations: [] }]);
+
+    try {
+      const response = await fetch('/api/generate-opposition-v2', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Accept: 'text/event-stream' },
+        body: JSON.stringify({
+          case_facts: structuredCase,
+          chat_history: nextMessages.map((msg) => ({
+            role: msg.sender === 'user' ? 'user' : 'opponent',
+            content: msg.text,
+          })),
+        }),
+      });
+
+      if (!response.ok || !response.body) {
+        throw new Error(`Could not reach simulation engine (${response.status}).`);
+      }
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder('utf-8');
+      let buffer = '';
+      let finalPayload: CompletePayload | null = null;
+
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const events = buffer.split('\n\n');
+        buffer = events.pop() || '';
+
+        for (const event of events) {
+          if (!event.trim()) continue;
+          const lines = event.split('\n');
+          const eventType = lines.find(line => line.startsWith('event: '))?.replace('event: ', '').trim() || 'message';
+          const dataLine = lines.find(line => line.startsWith('data: '));
+          if (!dataLine) continue;
+          const payload = JSON.parse(dataLine.replace('data: ', '').trim());
+
+          if (eventType === 'heartbeat' || eventType === 'retry') {
+            setStatus(payload.status);
+          }
+          if (eventType === 'delta') {
+            streamText += payload.text;
+            setMessages([...nextMessages, { sender: 'opponent', text: streamText, citations: [] }]);
+          }
+          if (eventType === 'complete') {
+            finalPayload = payload as CompletePayload;
+          }
+          if (eventType === 'error') {
+            throw new Error(payload.error || 'Simulation failed.');
+          }
+        }
+      }
+
+      if (finalPayload) {
+        setSimulationResult(finalPayload);
+        const opponentText = finalPayload.arguments
+          .map((arg, index) => `${index + 1}. ${arg.claim_text}`)
+          .join('\n\n');
+        const citations = finalPayload.arguments.flatMap(arg => arg.supporting_authority);
+        setMessages([...nextMessages, { sender: 'opponent', text: opponentText, citations }]);
+      }
+      setStatus('');
+    } catch (error) {
+      setErrorMsg(error instanceof Error ? error.message : 'Simulation failed.');
+      setMessages(nextMessages);
+    } finally {
+      setIsStreaming(false);
+    }
+  }
+
+  function handleSend() {
+    const text = draft.trim();
+    if (!text || isStreaming) return;
+    const nextMessages: DebateMessage[] = [...messages, { sender: 'user', text }];
+    setDraft('');
+    setMessages(nextMessages);
+    requestOpponentTurn(nextMessages);
+  }
+
+  async function handleAnalyze() {
+    setIsAnalyzing(true);
+    setErrorMsg('');
+    try {
+      const response = await fetch('/api/analyze-weaknesses', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          case_facts: structuredCase,
+          chat_history: messages.map((msg) => ({
+            role: msg.sender === 'user' ? 'user' : 'opponent',
+            content: msg.text,
+          })),
+        }),
+      });
+      if (!response.ok) throw new Error('Could not analyze the session.');
+      const data = await response.json();
+      setAnalysisResult(data);
+      setAnalysis(data);
+    } catch (error) {
+      setErrorMsg(error instanceof Error ? error.message : 'Analysis failed.');
+    } finally {
+      setIsAnalyzing(false);
+    }
+  }
+
+  const userMessages = messages.filter(msg => msg.sender === 'user');
+  const opponentMessages = messages.filter(msg => msg.sender === 'opponent');
+  const latestCitations = [...messages].reverse().find(msg => msg.sender === 'opponent' && msg.citations?.length)?.citations || [];
+
+  return (
+    <div className="min-h-screen bg-navy-950 pb-36 text-navy-50">
+      <Head><title>Practice Arena - Opposing-Argument Simulator</title></Head>
+
+      <header className="border-b border-navy-800 bg-navy-900/90 px-4 py-4">
+        <div className="mx-auto flex max-w-7xl flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h1 className="text-xl font-bold text-white">{plaintiff} v. {defendant}</h1>
+            <p className="text-sm text-navy-300">
+              {CLAIM_TYPE_LABELS[structuredCase.claim_type]} | {structuredCase.jurisdiction}
+            </p>
+          </div>
+          <div className="flex gap-3">
+            <button className="btn-secondary text-sm" onClick={() => router.push('/intake')}>Edit case</button>
+            <button className="btn-secondary text-sm" onClick={handleAnalyze} disabled={isAnalyzing || messages.length < 2}>
+              {isAnalyzing ? 'Analyzing...' : 'Conclude Practice'}
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <main className="mx-auto grid max-w-7xl gap-5 px-4 py-6 lg:grid-cols-[1fr_72px_1fr]">
+        <section className="rounded-lg border border-[#42A5F5]/40 bg-[#42A5F5]/10 p-4">
+          <div className="mb-4 flex items-center gap-3">
+            <Image src="/user_avatar.png" alt="You" width={76} height={76} className="avatar-idle rounded-full border-2 border-[#42A5F5]" />
+            <div>
+              <h2 className="font-bold text-[#42A5F5]">Your Side</h2>
+              <p className="text-xs text-navy-300">{structuredCase.available_evidence.length} evidence items ready</p>
+            </div>
+          </div>
+          <div className="mb-4 rounded-lg border border-[#42A5F5]/30 bg-navy-950/70 p-3">
+            <h3 className="text-xs font-semibold uppercase tracking-wide text-[#42A5F5]">Evidence</h3>
+            <ul className="mt-2 space-y-1 text-sm text-navy-200">
+              {structuredCase.available_evidence.map((item, index) => <li key={index}>{item.description}</li>)}
+              {structuredCase.available_evidence.length === 0 && <li>No evidence listed yet.</li>}
+            </ul>
+          </div>
+          <div className="space-y-3">
+            {userMessages.map((msg, index) => (
+              <div key={index} className="rounded-lg border border-[#42A5F5]/30 bg-[#42A5F5]/20 p-3 text-sm leading-6 text-white">
+                {msg.text}
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <div className="flex items-center justify-center">
+          <div className="flex h-14 w-14 items-center justify-center rounded-full border-2 border-gold-400 bg-navy-900 text-2xl text-gold-300">
+            ⚡
+          </div>
+        </div>
+
+        <section className="rounded-lg border border-[#EF5350]/40 bg-[#EF5350]/10 p-4">
+          <div className="mb-4 flex items-center justify-end gap-3 text-right">
+            <div>
+              <h2 className="font-bold text-[#EF5350]">Opposing Counsel</h2>
+              <p className="text-xs text-navy-300">{status || 'Ready'}</p>
+            </div>
+            <Image src="/opponent_avatar.png" alt="Opposing counsel" width={76} height={76} className={`${isStreaming ? 'avatar-speaking' : 'avatar-idle'} rounded-full border-2 border-[#EF5350]`} />
+          </div>
+          <div className="space-y-3">
+            {opponentMessages.map((msg, index) => (
+              <div key={index} className="rounded-lg border border-[#EF5350]/30 bg-[#EF5350]/20 p-3 text-sm leading-6 text-white whitespace-pre-wrap">
+                {msg.text || '...'}
+              </div>
+            ))}
+          </div>
+          {latestCitations.length > 0 && (
+            <div className="mt-4 rounded-lg border border-[#EF5350]/30 bg-navy-950/70 p-3">
+              <h3 className="text-xs font-semibold uppercase tracking-wide text-[#EF5350]">Verified citations</h3>
+              <ul className="mt-2 space-y-1 text-xs text-navy-200">
+                {latestCitations.map((citation, index) => (
+                  <li key={index} className={citation.unverified ? 'text-amber-300' : 'text-green-300'}>
+                    {citation.unverified ? 'Unverified: ' : 'Verified: '}{citation.citation}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </section>
+        <div ref={bottomRef} />
+      </main>
+
+      {errorMsg && (
+        <div className="mx-auto mb-4 max-w-3xl rounded-lg border border-red-500/40 bg-red-500/10 p-3 text-sm text-red-200">
+          {errorMsg}
+        </div>
+      )}
+
+      <div className="fixed inset-x-0 bottom-0 border-t border-navy-800 bg-navy-950/95 p-4 backdrop-blur">
+        <div className="mx-auto flex max-w-5xl flex-col gap-3 sm:flex-row">
+          <textarea
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            placeholder="Type your rebuttal..."
+            className="form-textarea min-h-[86px] flex-1"
+            disabled={isStreaming}
+          />
+          <div className="flex flex-row gap-3 sm:w-48 sm:flex-col">
+            <button className="btn-primary flex-1" onClick={handleSend} disabled={isStreaming || !draft.trim()}>
+              Submit Rebuttal
+            </button>
+            <button className="btn-secondary flex-1" onClick={() => router.push('/export')} disabled={!analysisResult}>
+              Export Review
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {analysisResult && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-navy-950/80 p-4">
+          <section className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-lg border border-gold-400/40 bg-navy-900 p-6 shadow-xl">
+            <h2 className="text-2xl font-bold text-white">Case Weaknesses & Strategy</h2>
+            <h3 className="mt-5 text-sm font-semibold uppercase tracking-wide text-gold-400">Weaknesses</h3>
+            <ul className="mt-3 list-disc space-y-2 pl-5 text-sm text-navy-100">
+              {analysisResult.weaknesses.map((item, index) => <li key={index}>{item}</li>)}
+            </ul>
+            <h3 className="mt-5 text-sm font-semibold uppercase tracking-wide text-gold-400">How to improve</h3>
+            <ul className="mt-3 list-disc space-y-2 pl-5 text-sm text-navy-100">
+              {analysisResult.improvement_tips.map((item, index) => <li key={index}>{item}</li>)}
+            </ul>
+            <div className="mt-6 flex justify-end gap-3">
+              <button className="btn-secondary" onClick={() => setAnalysisResult(null)}>Keep practicing</button>
+              <button className="btn-primary" onClick={() => router.push('/export')}>Export review</button>
+            </div>
+          </section>
+        </div>
+      )}
+>>>>>>> 9cca5f7 (feat: redesign frontend and add new components)
     </div>
   );
 }

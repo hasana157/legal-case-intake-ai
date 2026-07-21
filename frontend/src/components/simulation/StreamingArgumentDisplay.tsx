@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import type { StructuredCaseV2 } from '@/types/intake_v2';
 import type { RetrievedAuthorityV2 } from '@/services/api';
 import RebuttalWorkspace from './RebuttalWorkspace';
+import { useSession } from '@/context/SessionContext';
 
 export interface ArgumentPayload {
   claim_text: string;
@@ -22,6 +23,7 @@ export default function StreamingArgumentDisplay({
 }: {
   structuredCase: StructuredCaseV2;
 }) {
+  const { setSimulationResult } = useSession();
   const [status, setStatus] = useState<string>('Connecting...');
   const [streamText, setStreamText] = useState<string>('');
   const [isRetrying, setIsRetrying] = useState<boolean>(false);
@@ -51,7 +53,10 @@ export default function StreamingArgumentDisplay({
           'Content-Type': 'application/json',
           'Accept': 'text/event-stream'
         },
-        body: JSON.stringify(structuredCase)
+        body: JSON.stringify({
+          case_facts: structuredCase,
+          chat_history: [],
+        })
       });
 
       if (!response.ok || !response.body) {
@@ -104,7 +109,9 @@ export default function StreamingArgumentDisplay({
                     setIsRetrying(false);
                   }, 2000); // 2 second gray-out effect
                 } else if (eventType === 'complete') {
-                  setFinalData(parsed as CompletePayload);
+                  const completePayload = parsed as CompletePayload;
+                  setFinalData(completePayload);
+                  setSimulationResult(completePayload);
                   setStatus('Complete');
                 } else if (eventType === 'error') {
                   setErrorMsg(parsed.error);

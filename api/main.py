@@ -78,7 +78,15 @@ from api.models.retrieval import RetrievalResponse
 from api.services.case_parser import extract_case_facts
 from api.services.jurisdiction_validator import validate_jurisdiction
 from api.services.retrieval_service import retrieve_authorities
+<<<<<<< HEAD
 from api.services.llm_service import generate_opposing_arguments_stream, generate_rebuttal_hints, analyze_weaknesses
+=======
+from api.services.llm_service import (
+    analyze_simulation_weaknesses,
+    generate_opposing_arguments_stream,
+    generate_rebuttal_hints,
+)
+>>>>>>> 9cca5f7 (feat: redesign frontend and add new components)
 from api.services.citation_verifier import verify_citations
 
 # ── Rate limiter ──────────────────────────────────────────────────────────────
@@ -588,6 +596,26 @@ class WeaknessAnalysisResponse(BaseModel):
 # Milestone 6: Rate limited, narrative sanitized, Qdrant fallback hardened.
 # =============================================================================
 
+class ChatMessage(BaseModel):
+    role: str = Field(..., description='"user" or "opponent"')
+    content: str
+
+
+class SimulationRequest(BaseModel):
+    case_facts: StructuredCaseV2
+    chat_history: List[ChatMessage] = Field(default_factory=list)
+
+
+class AnalyzeWeaknessesRequest(BaseModel):
+    case_facts: StructuredCaseV2
+    chat_history: List[ChatMessage]
+
+
+class AnalyzeWeaknessesResponse(BaseModel):
+    weaknesses: List[str]
+    improvement_tips: List[str]
+
+
 @app.post(
     "/api/generate-opposition-v2",
     tags=["simulation"],
@@ -595,7 +623,11 @@ class WeaknessAnalysisResponse(BaseModel):
 )
 async def generate_opposition_v2(
     request: Request,
+<<<<<<< HEAD
     payload: SimulationRequest,
+=======
+    simulation_request: SimulationRequest,
+>>>>>>> 9cca5f7 (feat: redesign frontend and add new components)
 ):
     """
     Generative AI core (SSE streaming) with continuous chat support.
@@ -615,6 +647,9 @@ async def generate_opposition_v2(
         except Exception:
             # If rate limit exceeded, slowapi raises; we catch and surface calmly.
             pass
+
+    structured_case = simulation_request.case_facts
+    chat_history = [msg.model_dump() for msg in simulation_request.chat_history]
 
     # D1: Sanitize narrative against prompt injection before any LLM interaction
     sanitized_narrative = _sanitize_narrative(structured_case.raw_narrative or "")
@@ -664,7 +699,14 @@ async def generate_opposition_v2(
             # Helper to stream and accumulate
             async def _run_generation(is_retry=False):
                 async for chunk in generate_opposing_arguments_stream(
+<<<<<<< HEAD
                     structured_case, authorities, chat_history=chat_history, is_retry=is_retry
+=======
+                    structured_case,
+                    authorities,
+                    chat_history=chat_history,
+                    is_retry=is_retry,
+>>>>>>> 9cca5f7 (feat: redesign frontend and add new components)
                 ):
                     # Send delta event
                     yield f"event: delta\ndata: {json.dumps({'text': chunk})}\n\n"
@@ -810,4 +852,25 @@ async def get_rebuttal_hints(req: RebuttalHintsRequest) -> RebuttalHintsResponse
     except Exception as e:
         logger.error(f"Error in rebuttal-hints route: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post(
+    "/api/analyze-weaknesses",
+    response_model=AnalyzeWeaknessesResponse,
+    tags=["simulation"],
+    summary="Analyze user debate weaknesses",
+)
+async def analyze_weaknesses(req: AnalyzeWeaknessesRequest) -> AnalyzeWeaknessesResponse:
+    try:
+        result = await analyze_simulation_weaknesses(
+            case_facts=req.case_facts.model_dump(),
+            chat_history=[msg.model_dump() for msg in req.chat_history],
+        )
+        return AnalyzeWeaknessesResponse(
+            weaknesses=result.get("weaknesses", [])[:3],
+            improvement_tips=result.get("improvement_tips", [])[:6],
+        )
+    except Exception as e:
+        logger.error("Error in analyze-weaknesses route: %s", type(e).__name__)
+        raise HTTPException(status_code=500, detail="Could not analyze the practice session. Please try again.")
 

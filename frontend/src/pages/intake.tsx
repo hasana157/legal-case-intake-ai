@@ -8,13 +8,18 @@
 import React, { useState, useCallback } from 'react';
 import Head from 'next/head';
 import { useRouter } from 'next/router';
+<<<<<<< HEAD
 import CaseIntakeForm from '@/components/CaseIntakeForm';
+=======
+import WizardShell from '@/components/wizard/WizardShell';
+>>>>>>> 9cca5f7 (feat: redesign frontend and add new components)
 import { submitCaseIntakeV2 } from '@/services/api';
 import { useSession } from '@/context/SessionContext';
 import type { RawIntake } from '@/types/intake_v2';
 
 export default function IntakePage() {
   const router = useRouter();
+<<<<<<< HEAD
   const { setStructuredCase } = useSession();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -135,5 +140,53 @@ export default function IntakePage() {
         <CaseIntakeForm onSubmit={handleSubmit} isLoading={isLoading} />
       </div>
     </>
+=======
+  const { setStructuredCase, setSimulationResult } = useSession();
+  const [isLoading, setIsLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
+
+  async function handleSubmit(data: RawIntake) {
+    setIsLoading(true);
+    setErrorMsg('');
+
+    try {
+      const response = await submitCaseIntakeV2(data);
+      setStructuredCase(response.structured_case);
+      setSimulationResult(null);
+      router.push('/simulation');
+    } catch (error) {
+      setErrorMsg(error instanceof Error ? error.message : 'Intake analysis failed.');
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  return (
+    <div className="min-h-screen bg-navy-950 text-navy-50">
+      <Head>
+        <title>Case Intake - Opposing-Argument Simulator</title>
+      </Head>
+
+      <main className="mx-auto w-full max-w-5xl px-4 py-8 sm:px-6 lg:px-8">
+        <header className="mb-8">
+          <h1 className="mt-2 text-3xl font-bold text-white">
+            Prepare your case
+          </h1>
+          <p className="mt-3 max-w-3xl text-sm leading-6 text-navy-300">
+            Add the case details you want to practice with. Once the case is ready,
+            you will enter the debate arena automatically.
+          </p>
+        </header>
+
+        {errorMsg && (
+          <div className="mb-6 rounded-lg border border-red-500/40 bg-red-500/10 p-4 text-sm text-red-200" role="alert">
+            {errorMsg}
+          </div>
+        )}
+
+        <WizardShell onSubmit={handleSubmit} isLoading={isLoading} />
+      </main>
+    </div>
+>>>>>>> 9cca5f7 (feat: redesign frontend and add new components)
   );
 }

@@ -35,7 +35,7 @@ export const DisclaimerOverlay: React.FC<DisclaimerOverlayProps> = ({
           {content}
         </div>
         <div className={styles.footer}>
-          <Button variant="warning" fullWidth onClick={handleAccept}>
+          <Button variant="primary" fullWidth onClick={handleAccept}>
             {acceptText}
           </Button>
         </div>

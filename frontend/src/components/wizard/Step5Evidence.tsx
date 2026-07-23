@@ -49,7 +49,6 @@ export default function Step5Evidence({ formData, updateFormData, onNext, onBack
   }
 
   function handleNext() {
-    // Filter to only valid entries before proceeding
     const valid = localEvidence.filter(e => e.description.trim());
     updateFormData('evidence', valid);
     onNext();
@@ -60,15 +59,15 @@ export default function Step5Evidence({ formData, updateFormData, onNext, onBack
   return (
     <div className="space-y-6">
       <div className="card">
-        <p className="text-navy-300 text-sm mb-4 leading-relaxed">
-          List any evidence you have to support your case. This step is <strong className="text-navy-200">optional</strong> but
+        <p className="text-slate-500 text-sm mb-4 leading-relaxed">
+          List any evidence you have to support your case. This step is <strong className="text-ink-800">optional</strong> but
           helps the simulator understand the strength of your position.
         </p>
 
         {/* No evidence added yet — show prompt */}
         {!showForm && localEvidence.length === 0 && (
           <div className="text-center py-8">
-            <p className="text-navy-400 text-sm mb-4">
+            <p className="text-slate-500 text-sm mb-4">
               📎 Do you have any supporting documents, photos, messages, or witnesses?
             </p>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
@@ -100,7 +99,7 @@ export default function Step5Evidence({ formData, updateFormData, onNext, onBack
                 <div
                   key={index}
                   role="listitem"
-                  className="flex flex-col sm:flex-row gap-3 p-4 bg-navy-800/50 rounded-lg border border-navy-700/50"
+                  className="flex flex-col sm:flex-row gap-3 p-4 bg-slate-50 rounded-lg border border-slate-200"
                 >
                   <div className="flex-1">
                     <label htmlFor={`evidence-desc-${index}`} className="form-label">
@@ -134,8 +133,8 @@ export default function Step5Evidence({ formData, updateFormData, onNext, onBack
                     type="button"
                     aria-label={`Remove evidence item ${index + 1}`}
                     onClick={() => removeItem(index)}
-                    className="self-end sm:self-auto sm:mt-7 text-red-400 hover:text-red-300
-                               p-2 rounded-lg hover:bg-red-500/10 transition-colors text-sm"
+                    className="self-end sm:self-auto sm:mt-7 text-signal-danger hover:text-signal-danger/80
+                               p-2 rounded-lg hover:bg-signal-dangerSoft transition-colors text-sm"
                   >
                     ✕
                   </button>
@@ -158,7 +157,7 @@ export default function Step5Evidence({ formData, updateFormData, onNext, onBack
 
       {/* Summary */}
       {validCount > 0 && (
-        <p className="text-navy-400 text-xs">
+        <p className="text-slate-400 text-xs">
           {validCount} evidence {validCount === 1 ? 'item' : 'items'} listed
         </p>
       )}

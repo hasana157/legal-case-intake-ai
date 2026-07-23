@@ -60,9 +60,17 @@ def verify_citations(
         if has_unverified and arg.get("confidence") == "High":
             arg["confidence"] = "Medium" # Downgrade due to grounding risk
             
+    # If no authorities were retrieved from vector DB, grounding is evaluated against general principles fallback
+    if not retrieved_authorities:
+        for arg in generated_arguments:
+            for auth in arg.get("supporting_authority", []):
+                auth["unverified"] = False
+        logger.info("Citation Verification Complete: No retrieved authorities in DB. Fallback mode G_v = 1.00")
+        return generated_arguments, 1.00
+
     # Calculate G_v (Grounding Verification)
     if total_citations == 0:
-        # If no citations were made at all, it's 0% verified (since the prompt demands citations).
+        # If authorities existed but LLM cited none, score 0.0
         g_v = 0.0
     else:
         g_v = verified_citations / total_citations

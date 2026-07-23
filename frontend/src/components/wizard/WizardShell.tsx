@@ -1,11 +1,14 @@
 // =============================================================================
 // frontend/src/components/wizard/WizardShell.tsx
-// Milestone 2 — Multi-step wizard shell: manages step state, progress bar,
-// navigation, accessibility (aria-current, focus management), and submission.
+// Multi-step wizard shell — manages step state, progress bar, navigation,
+// accessibility (aria-current, focus management), and submission.
+// Restyled to ink/brass design system (no more navy-*/gold-* classes).
 // =============================================================================
 
-import React, { useRef, useEffect, useState, useCallback } from 'react';
+import React, { useRef, useEffect, useState, useCallback, useMemo } from 'react';
+import { CheckCircle2 } from 'lucide-react';
 import type { RawIntake } from '@/types/intake_v2';
+import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 import Step1Parties from './Step1Parties';
 import Step2ClaimJurisdiction from './Step2ClaimJurisdiction';
 import Step3KeyDates from './Step3KeyDates';
@@ -18,16 +21,15 @@ import Step6Review from './Step6Review';
 export interface StepMeta {
   number: number;
   title:  string;
-  icon:   string;
 }
 
 const STEPS: StepMeta[] = [
-  { number: 1, title: 'Parties & Roles',        icon: '👥' },
-  { number: 2, title: 'Claim & Jurisdiction',   icon: '⚖️' },
-  { number: 3, title: 'Key Dates',              icon: '📅' },
-  { number: 4, title: 'Narrative',              icon: '📝' },
-  { number: 5, title: 'Evidence',               icon: '📎' },
-  { number: 6, title: 'Review & Submit',        icon: '✅' },
+  { number: 1, title: 'Parties & Roles'       },
+  { number: 2, title: 'Claim & Jurisdiction'  },
+  { number: 3, title: 'Key Dates'             },
+  { number: 4, title: 'Narrative'             },
+  { number: 5, title: 'Evidence'              },
+  { number: 6, title: 'Review & Submit'       },
 ];
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -55,11 +57,8 @@ const EMPTY_FORM: RawIntake = {
 export default function WizardShell({ onSubmit, isLoading }: WizardShellProps) {
   const [currentStep, setCurrentStep] = useState<number>(1);
   const [formData,    setFormData]    = useState<RawIntake>(EMPTY_FORM);
-
-  // Track which steps have been individually validated (used for step indicator styling)
   const [completedSteps, setCompletedSteps] = useState<Set<number>>(new Set());
 
-  // Focus the heading of the new step on navigation for screen-reader users
   const stepHeadingRef = useRef<HTMLHeadingElement>(null);
 
   useEffect(() => {
@@ -91,12 +90,28 @@ export default function WizardShell({ onSubmit, isLoading }: WizardShellProps) {
   }
 
   function jumpToStep(n: number) {
-    // Only allow jumping to completed steps or the next step
     if (n <= currentStep || completedSteps.has(n - 1)) {
       setCurrentStep(n);
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
   }
+
+  // ── Keyboard shortcuts ───────────────────────────────────────────────────────
+
+  const shortcuts = useMemo(() => [
+    {
+      key: 'n',
+      ctrl: true,
+      shift: true,
+      label: 'Next wizard step',
+      handler: () => {
+        if (currentStep < STEPS.length) goNext();
+      },
+    },
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  ], [currentStep]);
+
+  useKeyboardShortcuts(shortcuts);
 
   // ── Submission ──────────────────────────────────────────────────────────────
 
@@ -107,17 +122,18 @@ export default function WizardShell({ onSubmit, isLoading }: WizardShellProps) {
   // ── Step props ──────────────────────────────────────────────────────────────
 
   const commonProps = { formData, updateFormData, onNext: goNext, onBack: goBack };
+  const progress = ((currentStep - 1) / (STEPS.length - 1)) * 100;
 
   return (
-    <div className="max-w-3xl mx-auto">
+    <div className="mx-auto max-w-3xl">
 
       {/* ── Progress bar + Step indicators ──────────────────────────────── */}
       <nav aria-label="Intake form steps" className="mb-8">
         {/* Linear progress bar */}
-        <div className="h-1 bg-navy-800 rounded-full mb-4 overflow-hidden">
+        <div className="mb-5 h-1 overflow-hidden rounded-full bg-slate-200">
           <div
-            className="h-full bg-gradient-to-r from-gold-600 to-gold-400 rounded-full transition-all duration-500"
-            style={{ width: `${((currentStep - 1) / (STEPS.length - 1)) * 100}%` }}
+            className="h-full rounded-full bg-brass-500 transition-all duration-500"
+            style={{ width: `${progress}%` }}
             role="progressbar"
             aria-valuenow={currentStep}
             aria-valuemin={1}
@@ -134,26 +150,31 @@ export default function WizardShell({ onSubmit, isLoading }: WizardShellProps) {
             const isClickable = step.number <= currentStep || completedSteps.has(step.number - 1);
 
             return (
-              <li key={step.number} className="flex flex-col items-center gap-1">
+              <li key={step.number} className="flex flex-col items-center gap-1.5">
                 <button
                   type="button"
                   aria-current={isActive ? 'step' : undefined}
                   aria-label={`Step ${step.number}: ${step.title}${isCompleted ? ' (completed)' : ''}${isActive ? ' (current)' : ''}`}
                   disabled={!isClickable}
                   onClick={() => jumpToStep(step.number)}
-                  className={`
-                    wizard-step-indicator
-                    ${isActive    ? 'wizard-step-active'    : ''}
-                    ${isCompleted ? 'wizard-step-completed' : ''}
-                    ${!isActive && !isCompleted ? 'wizard-step-future' : ''}
-                    ${!isClickable ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}
-                  `}
+                  className={[
+                    'wizard-step-indicator',
+                    isActive    ? 'wizard-step-active'    : '',
+                    isCompleted ? 'wizard-step-completed' : '',
+                    !isActive && !isCompleted ? 'wizard-step-future' : '',
+                    !isClickable ? 'cursor-not-allowed opacity-50' : 'cursor-pointer',
+                  ].filter(Boolean).join(' ')}
                 >
-                  {isCompleted ? '✓' : step.number}
+                  {isCompleted
+                    ? <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
+                    : step.number}
                 </button>
-                <span className={`text-xs font-medium max-w-[80px] text-center leading-tight ${
-                  isActive ? 'text-gold-400' : isCompleted ? 'text-green-400' : 'text-navy-400'
-                }`}>
+                <span
+                  className={[
+                    'max-w-[80px] text-center text-xs font-medium leading-tight',
+                    isActive ? 'text-brass-600' : isCompleted ? 'text-signal-success' : 'text-slate-400',
+                  ].join(' ')}
+                >
                   {step.title}
                 </span>
               </li>
@@ -163,30 +184,29 @@ export default function WizardShell({ onSubmit, isLoading }: WizardShellProps) {
 
         {/* Mobile: compact step indicator */}
         <div className="sm:hidden flex items-center justify-between">
-          <span className="text-navy-400 text-xs">
-            Step <strong className="text-white">{currentStep}</strong> of {STEPS.length}
+          <span className="text-xs text-slate-500">
+            Step <strong className="text-ink-800">{currentStep}</strong> of {STEPS.length}
           </span>
-          <span className="text-sm font-semibold text-white">
-            {STEPS[currentStep - 1].icon} {STEPS[currentStep - 1].title}
+          <span className="text-sm font-semibold text-ink-700">
+            {STEPS[currentStep - 1].title}
           </span>
         </div>
       </nav>
 
-      {/* ── Step heading (visually hidden focus target for a11y) ─────────── */}
+      {/* ── Step heading (a11y focus target) ──────────────────────────────── */}
       <h2
         ref={stepHeadingRef}
         tabIndex={-1}
-        className="text-xl font-bold text-white mb-6 outline-none flex items-center gap-3"
+        className="mb-6 flex items-center gap-2 font-display text-xl font-semibold text-ink-800 outline-none"
       >
-        <span className="text-2xl" aria-hidden="true">{STEPS[currentStep - 1].icon}</span>
         {STEPS[currentStep - 1].title}
-        <span className="text-navy-400 text-sm font-normal ml-auto hidden sm:block">
+        <span className="ml-auto hidden text-sm font-normal text-slate-400 sm:block">
           {currentStep}/{STEPS.length}
         </span>
       </h2>
 
-      {/* ── Step content ─────────────────────────────────────────────────── */}
-      <div className="animate-slide-in">
+      {/* ── Step content ──────────────────────────────────────────────────── */}
+      <div className="animate-fade-up">
         {currentStep === 1 && <Step1Parties {...commonProps} />}
         {currentStep === 2 && <Step2ClaimJurisdiction {...commonProps} />}
         {currentStep === 3 && <Step3KeyDates {...commonProps} />}

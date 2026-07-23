@@ -8,6 +8,7 @@
 import React, { useState } from 'react';
 import type { RawIntake, ClaimType } from '@/types/intake_v2';
 import { CLAIM_TYPE_LABELS, JURISDICTIONS } from '@/types/intake_v2';
+import { Alert } from '@/components/ui/alert';
 
 interface Props {
   formData:       RawIntake;
@@ -62,7 +63,7 @@ export default function Step2ClaimJurisdiction({ formData, updateFormData, onNex
   return (
     <div className="space-y-6">
       <div className="card space-y-6">
-        <p className="text-navy-300 text-sm leading-relaxed">
+        <p className="text-slate-500 text-sm leading-relaxed">
           Select the category that best describes your dispute, and the US state
           (or Federal) where the case will be filed. These are required to retrieve
           relevant case law in later steps.
@@ -71,12 +72,12 @@ export default function Step2ClaimJurisdiction({ formData, updateFormData, onNex
         {/* Claim Type */}
         <div>
           <label htmlFor="claim_type" className="form-label">
-            Claim Type <span className="text-red-400">*</span>
+            Claim Type <span className="text-signal-danger">*</span>
           </label>
           <select
             id="claim_type"
             name="claim_type"
-            className={`form-select ${errors.claim_type ? 'border-red-500/60' : ''}`}
+            className={`form-select ${errors.claim_type ? 'border-signal-danger' : ''}`}
             value={claimType}
             onChange={handleClaimChange}
             aria-required="true"
@@ -89,14 +90,14 @@ export default function Step2ClaimJurisdiction({ formData, updateFormData, onNex
             ))}
           </select>
           {errors.claim_type && (
-            <p id="error-claim_type" className="form-error" role="alert">
-              <span aria-hidden="true">⚠</span> {errors.claim_type}
+            <p id="error-claim_type" className="mt-1.5 text-xs text-signal-danger" role="alert">
+              ⚠ {errors.claim_type}
             </p>
           )}
 
           {/* Claim type description hint */}
           {claimType && (
-            <p className="mt-2 text-navy-400 text-xs">
+            <p className="mt-2 text-slate-400 text-xs">
               {claimType === 'small_claims'    && 'Disputes under your state\'s small claims limit — typically $5,000–$12,500.'}
               {claimType === 'tenancy'          && 'Disputes between landlords and tenants (e.g. deposit, eviction, repairs).'}
               {claimType === 'family'           && 'Divorce, custody, child support, domestic violence, or similar family matters.'}
@@ -112,12 +113,12 @@ export default function Step2ClaimJurisdiction({ formData, updateFormData, onNex
         {/* Jurisdiction */}
         <div>
           <label htmlFor="jurisdiction" className="form-label">
-            Jurisdiction (US State or Federal) <span className="text-red-400">*</span>
+            Jurisdiction (US State or Federal) <span className="text-signal-danger">*</span>
           </label>
           <select
             id="jurisdiction"
             name="jurisdiction"
-            className={`form-select ${errors.jurisdiction ? 'border-red-500/60' : ''}`}
+            className={`form-select ${errors.jurisdiction ? 'border-signal-danger' : ''}`}
             value={jurisdiction}
             onChange={handleJurisdictionChange}
             aria-required="true"
@@ -130,11 +131,11 @@ export default function Step2ClaimJurisdiction({ formData, updateFormData, onNex
             ))}
           </select>
           {errors.jurisdiction ? (
-            <p id="error-jurisdiction" className="form-error" role="alert">
-              <span aria-hidden="true">⚠</span> {errors.jurisdiction}
+            <p id="error-jurisdiction" className="mt-1.5 text-xs text-signal-danger" role="alert">
+              ⚠ {errors.jurisdiction}
             </p>
           ) : (
-            <p id="jurisdiction-hint" className="mt-1.5 text-navy-400 text-xs">
+            <p id="jurisdiction-hint" className="mt-1.5 text-slate-400 text-xs">
               Select the state where the incident occurred or where you plan to file.
               This determines which case law is used for argument retrieval.
             </p>
@@ -142,14 +143,11 @@ export default function Step2ClaimJurisdiction({ formData, updateFormData, onNex
         </div>
 
         {/* Warning: jurisdiction is a hard gate */}
-        <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg flex gap-2">
-          <span className="text-amber-400 mt-0.5" aria-hidden="true">ℹ️</span>
-          <p className="text-amber-300 text-xs leading-relaxed">
-            <strong>Required for retrieval:</strong> Jurisdiction must be selected from the dropdown.
-            Free-text entries are not accepted here — the case cannot proceed to simulation
-            without a valid jurisdiction.
-          </p>
-        </div>
+        <Alert variant="info">
+          <strong>Required for retrieval:</strong> Jurisdiction must be selected from the dropdown.
+          Free-text entries are not accepted here — the case cannot proceed to simulation
+          without a valid jurisdiction.
+        </Alert>
       </div>
 
       {/* Navigation */}

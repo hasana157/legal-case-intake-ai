@@ -85,8 +85,6 @@ export default function generatePdf(
   }
   currentY += 5;
 
-<<<<<<< HEAD
-=======
   if (messages.length > 0) {
     addText('Chat Transcript', 16, true, [41, 128, 185]);
     messages.forEach((message) => {
@@ -107,7 +105,6 @@ export default function generatePdf(
   }
 
   // Iterating over opposing arguments
->>>>>>> 9cca5f7 (feat: redesign frontend and add new components)
   simulationResult.arguments.forEach((arg, idx) => {
     checkPageBreak(20);
     addText(`Opposing Argument ${idx + 1} - ${arg.category.toUpperCase()} (${arg.confidence} Confidence)`, 14, true, [50, 50, 50]);
@@ -145,8 +142,6 @@ export default function generatePdf(
     currentY += 5;
   });
 
-<<<<<<< HEAD
-=======
   if (analysis) {
     checkPageBreak(30);
     addText('Case Weaknesses & Strategy to Overcome', 16, true, [41, 128, 185]);
@@ -159,9 +154,6 @@ export default function generatePdf(
       addText(`${index + 1}. ${tip}`, 10, false, [0, 0, 0], 5);
     });
   }
-
-  // End of Document
->>>>>>> 9cca5f7 (feat: redesign frontend and add new components)
   const dateStr = new Date().toISOString().split('T')[0];
   doc.save(`hearing-rehearsal-guide-${structuredCase.claim_type}-${dateStr}.pdf`);
 }

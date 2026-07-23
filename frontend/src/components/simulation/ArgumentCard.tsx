@@ -45,15 +45,14 @@ export function ArgumentCard({
   return (
     <article
       className={[
-        'group relative rounded-lg border bg-white shadow-card transition-shadow hover:shadow-cardHover',
-        'border-slate-200',
+        'group relative rounded-xl border border-white/60 bg-white/60 backdrop-blur-xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] transition-all duration-300 hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] hover:-translate-y-1',
       ].join(' ')}
     >
       {/* side rail — the only "avatar" left in the design */}
       <div
         className={[
-          'absolute inset-y-0 left-0 w-[3px] rounded-l-lg',
-          isOpposing ? 'bg-signal-danger/70' : 'bg-signal-info/70',
+          'absolute inset-y-0 left-0 w-1.5 rounded-l-xl',
+          isOpposing ? 'bg-gradient-to-b from-rose-400 to-rose-600' : 'bg-gradient-to-b from-blue-400 to-blue-600',
         ].join(' ')}
         aria-hidden="true"
       />

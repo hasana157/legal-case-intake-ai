@@ -7,13 +7,13 @@
 // =============================================================================
 
 import React from 'react';
-import { AlertTriangle, Info, CheckCircle2, XCircle, Scale, X } from 'lucide-react';
+import { AlertTriangle, Info, CheckCircle2, XCircle, Scale, X, type LucideIcon } from 'lucide-react';
 
 type AlertVariant = 'info' | 'success' | 'warning' | 'danger' | 'legal';
 
 const VARIANT_META: Record<
   AlertVariant,
-  { icon: React.ComponentType<{ className?: string }>; classes: string; iconClasses: string }
+  { icon: LucideIcon; classes: string; iconClasses: string }
 > = {
   info: {
     icon: Info,

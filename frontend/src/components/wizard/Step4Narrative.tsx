@@ -7,6 +7,7 @@
 
 import React, { useState } from 'react';
 import type { RawIntake } from '@/types/intake_v2';
+import { Alert } from '@/components/ui/alert';
 
 interface Props {
   formData:       RawIntake;
@@ -59,16 +60,16 @@ export default function Step4Narrative({ formData, updateFormData, onNext, onBac
   return (
     <div className="space-y-6">
       <div className="card">
-        <p className="text-navy-300 text-sm mb-4 leading-relaxed">
+        <p className="text-slate-500 text-sm mb-4 leading-relaxed">
           Describe what happened in your own words. Include relevant dates, events,
           communications, agreements, and anything the other party said or did.
           The more detail you provide, the better the analysis will be.
         </p>
 
         {/* Tips */}
-        <div className="mb-4 p-3 bg-navy-800/70 border border-navy-700/50 rounded-lg">
-          <p className="text-navy-300 text-xs font-semibold mb-2">💡 Tips for a strong narrative:</p>
-          <ul className="space-y-1 text-navy-400 text-xs list-disc list-inside">
+        <div className="mb-4 p-3 bg-brass-50 border border-brass-200 rounded-lg">
+          <p className="text-ink-800 text-xs font-semibold mb-2">💡 Tips for a strong narrative:</p>
+          <ul className="space-y-1 text-ink-700 text-xs list-disc list-inside">
             <li>Start from the beginning — when did the relationship or agreement start?</li>
             <li>Describe what was agreed or expected</li>
             <li>Explain what went wrong and when</li>
@@ -81,13 +82,13 @@ export default function Step4Narrative({ formData, updateFormData, onNext, onBac
         {/* Textarea */}
         <div>
           <label htmlFor="narrative" className="form-label">
-            Your Story <span className="text-red-400">*</span>
-            <span className="ml-2 text-navy-400 font-normal">(minimum {MIN_CHARS} characters)</span>
+            Your Story <span className="text-signal-danger">*</span>
+            <span className="ml-2 text-slate-400 font-normal">(minimum {MIN_CHARS} characters)</span>
           </label>
           <textarea
             id="narrative"
             name="narrative"
-            className={`form-textarea min-h-[200px] ${error ? 'border-red-500/60' : ''}`}
+            className={`form-textarea min-h-[200px] ${error ? 'border-signal-danger' : ''}`}
             rows={10}
             placeholder="On [date], I [entered into an agreement / rented a property / was injured / etc.]. The other party agreed to [describe what was promised]. However, [describe what went wrong]..."
             value={text}
@@ -100,17 +101,17 @@ export default function Step4Narrative({ formData, updateFormData, onNext, onBac
           {/* Counts and error */}
           <div className="flex items-center justify-between mt-2 gap-4">
             {error ? (
-              <p id="error-narrative" className="form-error" role="alert">
-                <span aria-hidden="true">⚠</span> {error}
+              <p id="error-narrative" className="text-xs text-signal-danger" role="alert">
+                ⚠ {error}
               </p>
             ) : (
-              <span className="text-xs text-navy-500" />
+              <span className="text-xs text-slate-400" />
             )}
             <div id="narrative-counts" className="text-xs text-right flex-shrink-0 space-x-3">
-              <span className={charCount < MIN_CHARS ? 'text-amber-400' : 'text-navy-400'}>
+              <span className={charCount < MIN_CHARS ? 'text-signal-warning' : 'text-slate-400'}>
                 {charCount} chars
               </span>
-              <span className={isLong ? 'text-amber-400' : 'text-navy-400'}>
+              <span className={isLong ? 'text-signal-warning' : 'text-slate-400'}>
                 {wordCount.toLocaleString()} words
               </span>
             </div>
@@ -119,19 +120,9 @@ export default function Step4Narrative({ formData, updateFormData, onNext, onBac
 
         {/* Long narrative warning */}
         {isLong && (
-          <div className="mt-4 p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg flex gap-2" role="status">
-            <span className="text-amber-400 mt-0.5" aria-hidden="true">⚠️</span>
-            <div>
-              <p className="text-amber-300 text-sm font-semibold">Long narrative detected</p>
-              <p className="text-amber-300/80 text-xs mt-1 leading-relaxed">
-                Your narrative has <strong>{wordCount.toLocaleString()}</strong> words
-                (over the {LONG_NARRATIVE_WORDS.toLocaleString()}-word threshold).
-                The server will automatically split it into overlapping chunks for
-                extraction. This may take a few extra seconds but ensures accurate
-                fact structuring across the entire text.
-              </p>
-            </div>
-          </div>
+          <Alert variant="warning" className="mt-4">
+            <strong>Long narrative detected ({wordCount.toLocaleString()} words):</strong> The server will automatically split it into overlapping chunks for extraction. This ensures accurate fact structuring.
+          </Alert>
         )}
       </div>
 

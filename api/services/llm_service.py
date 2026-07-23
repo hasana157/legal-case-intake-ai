@@ -7,11 +7,7 @@
 import os
 import json
 import logging
-<<<<<<< HEAD
-from typing import AsyncGenerator, List, Any
-=======
-from typing import AsyncGenerator, List, Dict
->>>>>>> 9cca5f7 (feat: redesign frontend and add new components)
+from typing import AsyncGenerator, List, Any, Dict
 from groq import AsyncGroq, APIError, RateLimitError, APITimeoutError
 from groq.types.chat import ChatCompletionMessageParam
 
@@ -71,11 +67,7 @@ def _get_async_groq_client() -> AsyncGroq:
 def _build_messages(
     structured_case: StructuredCaseV2, 
     retrieved_authorities: List[RetrievedAuthorityV2],
-<<<<<<< HEAD
-    chat_history: List[Any] = None,
-=======
-    chat_history: List[Dict[str, str]] | None = None,
->>>>>>> 9cca5f7 (feat: redesign frontend and add new components)
+    chat_history: List[Any] | None = None,
     is_retry: bool = False
 ) -> List[ChatCompletionMessageParam]:
     
@@ -98,16 +90,9 @@ def _build_messages(
     sys_prompt += f"\n\nRETRIEVED AUTHORITIES:\n{auth_block}"
     if chat_history:
         history_lines = []
-        for msg in chat_history[-12:]:
-            role = "Self-represented litigant" if msg.get("role") == "user" else "Opposing counsel"
-            history_lines.append(f"{role}: {msg.get('content', '')}")
-        sys_prompt += "\n\nDEBATE HISTORY SO FAR:\n" + "\n\n".join(history_lines)
-    
-    if chat_history:
-        history_lines = []
         for msg in chat_history:
-            role = getattr(msg, "role", None) or msg.get("role")
-            content = getattr(msg, "content", None) or msg.get("content")
+            role = getattr(msg, "role", None) or (msg.get("role") if isinstance(msg, dict) else None)
+            content = getattr(msg, "content", None) or (msg.get("content") if isinstance(msg, dict) else None)
             role_label = "Opposing Counsel (You)" if role == "opponent" else "Plaintiff (User)"
             history_lines.append(f"{role_label}: {content}")
         sys_prompt += "\n\nDEBATE HISTORY:\n" + "\n".join(history_lines)
@@ -132,11 +117,7 @@ def _build_messages(
 async def generate_opposing_arguments_stream(
     structured_case: StructuredCaseV2,
     retrieved_authorities: List[RetrievedAuthorityV2],
-<<<<<<< HEAD
-    chat_history: List[Any] = None,
-=======
-    chat_history: List[Dict[str, str]] | None = None,
->>>>>>> 9cca5f7 (feat: redesign frontend and add new components)
+    chat_history: List[Any] | None = None,
     is_retry: bool = False
 ) -> AsyncGenerator[str, None]:
     """
@@ -262,7 +243,6 @@ async def generate_rebuttal_hints(argument_text: str) -> str:
         logger.error("Rebuttal hints error | model=%s", GROQ_GENERATION_MODEL)
         return "Could not generate hints at this time. Please try again."
 
-<<<<<<< HEAD
 # =============================================================================
 # Weaknesses & Improvement Strategy Analysis LLM
 # =============================================================================
@@ -278,58 +258,6 @@ Return a JSON object with two fields:
 
 Do not output markdown code blocks (e.g. ```json), just the raw JSON.
 """
-
-async def analyze_weaknesses(case_facts: StructuredCaseV2, chat_history: List[Any]) -> dict:
-    """
-    Reviews the debate history and returns strategic weaknesses and actionable tips.
-    """
-    client = _get_async_groq_client()
-    
-    history_lines = []
-    for msg in chat_history:
-        role = getattr(msg, "role", None) or msg.get("role")
-        content = getattr(msg, "content", None) or msg.get("content")
-        role_label = "Opposing Counsel" if role == "opponent" else "Plaintiff (User)"
-        history_lines.append(f"{role_label}: {content}")
-    history_text = "\n".join(history_lines)
-    
-    user_content = (
-        f"Case Facts:\n"
-        f"{json.dumps(case_facts.disputed_facts, indent=2)}\n\n"
-        f"Debate Transcript:\n"
-        f"{history_text}\n"
-    )
-    
-    messages = [
-        {"role": "system", "content": _WEAKNESSES_SYSTEM_PROMPT},
-        {"role": "user", "content": user_content}
-    ]
-    
-    try:
-        response = await client.chat.completions.create(
-            model=GROQ_GENERATION_MODEL,
-            messages=messages,
-            temperature=0.3,
-            max_tokens=1000,
-            response_format={"type": "json_object"}
-        )
-        return json.loads(response.choices[0].message.content)
-    except Exception as e:
-        logger.error(f"Error in weaknesses analysis: {e}")
-        return {
-            "weaknesses": [
-                "Could not complete strategic analysis due to a temporary service error.",
-                "Ensure your arguments reference specific dates and statutory periods.",
-                "Verify whether proper written notice was provided to the opposing party."
-            ],
-            "improvement_tips": [
-                "Try running the concluding analysis again in a few moments.",
-                "Review the applicable state laws for security deposits or your specific claim type.",
-                "Gather all communications, emails, or text messages showing notice was sent on time."
-            ]
-        }
-
-=======
 
 async def analyze_simulation_weaknesses(
     case_facts: dict,
@@ -358,16 +286,31 @@ async def analyze_simulation_weaknesses(
         },
     ]
 
-    response = await client.chat.completions.create(
-        model=GROQ_GENERATION_MODEL,
-        messages=messages,
-        temperature=0.2,
-        max_tokens=700,
-    )
-    content = (response.choices[0].message.content or "").strip()
-    if content.startswith("```json"):
-        content = content[7:]
-    if content.endswith("```"):
-        content = content[:-3]
-    return json.loads(content)
->>>>>>> 9cca5f7 (feat: redesign frontend and add new components)
+    try:
+        response = await client.chat.completions.create(
+            model=GROQ_GENERATION_MODEL,
+            messages=messages,
+            temperature=0.2,
+            max_tokens=700,
+            response_format={"type": "json_object"}
+        )
+        content = (response.choices[0].message.content or "").strip()
+        if content.startswith("```json"):
+            content = content[7:]
+        if content.endswith("```"):
+            content = content[:-3]
+        return json.loads(content)
+    except Exception as e:
+        logger.error(f"Error in weaknesses analysis: {e}")
+        return {
+            "weaknesses": [
+                "Could not complete strategic analysis due to a temporary service error.",
+                "Ensure your arguments reference specific dates and statutory periods.",
+                "Verify whether proper written notice was provided to the opposing party."
+            ],
+            "improvement_tips": [
+                "Try running the concluding analysis again in a few moments.",
+                "Review the applicable state laws for security deposits or your specific claim type.",
+                "Gather all communications, emails, or text messages showing notice was sent on time."
+            ]
+        }

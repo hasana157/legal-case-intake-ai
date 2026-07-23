@@ -7,6 +7,7 @@
 
 import React, { useState } from 'react';
 import type { RawIntake, KeyDate } from '@/types/intake_v2';
+import { Alert } from '@/components/ui/alert';
 
 interface Props {
   formData:       RawIntake;
@@ -72,7 +73,6 @@ export default function Step3KeyDates({ formData, updateFormData, onNext, onBack
         'and other time-sensitive checks cannot be performed.',
       );
     }
-    // Check for empty-half entries (label but no date, or vice versa)
     dates.forEach((d, i) => {
       if (d.label.trim() && !d.date.trim()) {
         errs.push(`Date #${i + 1}: label provided but date is missing.`);
@@ -98,7 +98,7 @@ export default function Step3KeyDates({ formData, updateFormData, onNext, onBack
   return (
     <div className="space-y-6">
       <div className="card">
-        <p className="text-navy-300 text-sm mb-4 leading-relaxed">
+        <p className="text-slate-500 text-sm mb-4 leading-relaxed">
           Add all important dates related to your dispute. At minimum, include the date
           the incident or breach occurred — this is essential for checking time limits.
         </p>
@@ -109,11 +109,11 @@ export default function Step3KeyDates({ formData, updateFormData, onNext, onBack
             <div
               key={index}
               role="listitem"
-              className="flex flex-col sm:flex-row gap-3 p-4 bg-navy-800/50 rounded-lg border border-navy-700/50"
+              className="flex flex-col sm:flex-row gap-3 p-4 bg-slate-50 rounded-lg border border-slate-200"
             >
               <div className="flex-1">
                 <label htmlFor={`date-label-${index}`} className="form-label">
-                  Label <span className="text-red-400">*</span>
+                  Label <span className="text-signal-danger">*</span>
                 </label>
                 <select
                   id={`date-label-${index}`}
@@ -146,7 +146,7 @@ export default function Step3KeyDates({ formData, updateFormData, onNext, onBack
               </div>
               <div className="sm:w-48">
                 <label htmlFor={`date-value-${index}`} className="form-label">
-                  Date <span className="text-red-400">*</span>
+                  Date <span className="text-signal-danger">*</span>
                 </label>
                 <input
                   id={`date-value-${index}`}
@@ -162,8 +162,8 @@ export default function Step3KeyDates({ formData, updateFormData, onNext, onBack
                   type="button"
                   aria-label={`Remove date ${index + 1}`}
                   onClick={() => removeDate(index)}
-                  className="self-end sm:self-auto sm:mt-7 text-red-400 hover:text-red-300
-                             p-2 rounded-lg hover:bg-red-500/10 transition-colors text-sm"
+                  className="self-end sm:self-auto sm:mt-7 text-signal-danger hover:text-signal-danger/80
+                             p-2 rounded-lg hover:bg-signal-dangerSoft transition-colors text-sm"
                 >
                   ✕
                 </button>
@@ -184,21 +184,21 @@ export default function Step3KeyDates({ formData, updateFormData, onNext, onBack
 
         {/* Validation errors */}
         {touched && errors.length > 0 && (
-          <div className="mt-4 p-3 bg-red-500/10 border border-red-500/30 rounded-lg" role="alert">
+          <Alert variant="danger" className="mt-4">
             <ul className="space-y-1">
               {errors.map((err, i) => (
-                <li key={i} className="text-red-400 text-sm flex items-start gap-2">
-                  <span aria-hidden="true">⚠</span> {err}
+                <li key={i} className="text-sm flex items-start gap-2">
+                  {err}
                 </li>
               ))}
             </ul>
-          </div>
+          </Alert>
         )}
       </div>
 
       {/* Summary */}
       {validCount > 0 && (
-        <p className="text-navy-400 text-xs">
+        <p className="text-slate-400 text-xs">
           {validCount} {validCount === 1 ? 'date' : 'dates'} entered
         </p>
       )}

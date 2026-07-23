@@ -78,7 +78,7 @@ export default function Step1Parties({ formData, updateFormData, onNext }: Props
   return (
     <div className="space-y-6">
       <div className="card">
-        <p className="text-navy-300 text-sm mb-4 leading-relaxed">
+        <p className="text-slate-500 text-sm mb-4 leading-relaxed">
           Add all parties involved in your dispute. You need at least one plaintiff
           (typically yourself) and one defendant (the opposing party).
         </p>
@@ -89,7 +89,7 @@ export default function Step1Parties({ formData, updateFormData, onNext }: Props
             <div
               key={index}
               role="listitem"
-              className="flex flex-col sm:flex-row gap-3 p-4 bg-navy-800/50 rounded-lg border border-navy-700/50"
+              className="flex flex-col sm:flex-row gap-3 p-4 bg-slate-50 rounded-lg border border-slate-200"
             >
               <div className="flex-1">
                 <label
@@ -167,7 +167,7 @@ export default function Step1Parties({ formData, updateFormData, onNext }: Props
 
       {/* Parties summary */}
       {namedCount > 0 && (
-        <p className="text-navy-400 text-xs">
+        <p className="text-slate-400 text-xs">
           {namedCount} {namedCount === 1 ? 'party' : 'parties'} added
         </p>
       )}

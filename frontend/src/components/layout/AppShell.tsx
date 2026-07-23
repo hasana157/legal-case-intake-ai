@@ -30,7 +30,7 @@ interface AppShellProps {
 
 export function AppShell({ title, description, actions, workflow, children }: AppShellProps) {
   return (
-    <div className="flex min-h-screen bg-slate-50">
+    <div className="flex min-h-screen bg-gradient-to-br from-slate-50 via-slate-100 to-slate-200 text-slate-900">
       <SidebarNav />
 
       <div className="flex min-w-0 flex-1 flex-col">
@@ -43,10 +43,10 @@ export function AppShell({ title, description, actions, workflow, children }: Ap
         </div>
 
         {/* Top bar */}
-        <header className="flex items-center justify-between gap-4 border-b border-slate-200 bg-white px-6 py-4">
+        <header className="sticky top-0 z-40 flex items-center justify-between gap-4 border-b border-white/20 bg-white/70 backdrop-blur-xl px-6 py-4 shadow-sm">
           <div className="min-w-0">
-            <h1 className="truncate font-display text-lg font-semibold text-ink-800">{title}</h1>
-            {description && <p className="mt-0.5 truncate text-sm text-slate-500">{description}</p>}
+            <h1 className="truncate font-display text-lg font-bold text-slate-800 tracking-tight">{title}</h1>
+            {description && <p className="mt-0.5 truncate text-sm font-medium text-slate-500">{description}</p>}
           </div>
           {actions && <div className="flex flex-shrink-0 items-center gap-2">{actions}</div>}
         </header>

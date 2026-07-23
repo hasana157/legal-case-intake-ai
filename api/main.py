@@ -24,6 +24,7 @@ from typing import List, Optional
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Request, Response
+from fastapi.concurrency import run_in_threadpool
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
@@ -45,7 +46,18 @@ except ImportError:
     )
 
 # Load .env early so GROQ_API_KEY is available to case_parser at import time.
-load_dotenv()
+# search_directories walks up to find .env in parent dirs too.
+load_dotenv(dotenv_path=None, override=False)
+from pathlib import Path
+_env_candidates = [
+    Path(".") / ".env",
+    Path("..") / ".env",
+    Path("D:/case_intake_app3") / ".env",
+]
+for _candidate in _env_candidates:
+    if _candidate.exists():
+        load_dotenv(dotenv_path=str(_candidate), override=False)
+        break
 
 # ── Logging & Request ID correlation ──────────────────────────────────────────
 class RequestIdFormatter(logging.Formatter):
@@ -78,15 +90,11 @@ from api.models.retrieval import RetrievalResponse
 from api.services.case_parser import extract_case_facts
 from api.services.jurisdiction_validator import validate_jurisdiction
 from api.services.retrieval_service import retrieve_authorities
-<<<<<<< HEAD
-from api.services.llm_service import generate_opposing_arguments_stream, generate_rebuttal_hints, analyze_weaknesses
-=======
 from api.services.llm_service import (
     analyze_simulation_weaknesses,
     generate_opposing_arguments_stream,
     generate_rebuttal_hints,
 )
->>>>>>> 9cca5f7 (feat: redesign frontend and add new components)
 from api.services.citation_verifier import verify_citations
 
 # ── Rate limiter ──────────────────────────────────────────────────────────────
@@ -376,7 +384,7 @@ async def health_check() -> HealthResponse:
         },
     },
 )
-async def intake(raw_intake: RawIntake) -> IntakeResponseV2:
+def intake(raw_intake: RawIntake) -> IntakeResponseV2:
     """
     Accepts a RawIntake (multi-step wizard output), extracts structured facts
     using the Groq LLM (with regex fallback), validates jurisdiction and
@@ -505,7 +513,7 @@ async def intake(raw_intake: RawIntake) -> IntakeResponseV2:
     tags=["simulation"],
     summary="Generate opposing arguments (Milestone 1: hardcoded mock — unchanged)",
 )
-async def generate_opposition(
+def generate_opposition(
     request: GenerateOppositionRequest,
 ) -> OpposingArgumentsResponse:
     """
@@ -554,7 +562,7 @@ async def generate_opposition(
     tags=["retrieval"],
     summary="Retrieve legal authorities (Milestone 3: Qdrant RAG)",
 )
-async def retrieve_authorities_route(
+def retrieve_authorities_route(
     structured_case: StructuredCaseV2,
     limit: int = 10,
 ) -> RetrievalResponse:
@@ -623,11 +631,7 @@ class AnalyzeWeaknessesResponse(BaseModel):
 )
 async def generate_opposition_v2(
     request: Request,
-<<<<<<< HEAD
     payload: SimulationRequest,
-=======
-    simulation_request: SimulationRequest,
->>>>>>> 9cca5f7 (feat: redesign frontend and add new components)
 ):
     """
     Generative AI core (SSE streaming) with continuous chat support.
@@ -647,9 +651,6 @@ async def generate_opposition_v2(
         except Exception:
             # If rate limit exceeded, slowapi raises; we catch and surface calmly.
             pass
-
-    structured_case = simulation_request.case_facts
-    chat_history = [msg.model_dump() for msg in simulation_request.chat_history]
 
     # D1: Sanitize narrative against prompt injection before any LLM interaction
     sanitized_narrative = _sanitize_narrative(structured_case.raw_narrative or "")
@@ -678,7 +679,7 @@ async def generate_opposition_v2(
                 insufficient_grounding = False
             else:
                 try:
-                    retrieval_resp = retrieve_authorities(structured_case, k=10)
+                    retrieval_resp = await run_in_threadpool(retrieve_authorities, structured_case, 10)
                     authorities = retrieval_resp.authorities
                     insufficient_grounding = retrieval_resp.insufficient_grounding
                 except Exception as qdrant_err:
@@ -699,14 +700,7 @@ async def generate_opposition_v2(
             # Helper to stream and accumulate
             async def _run_generation(is_retry=False):
                 async for chunk in generate_opposing_arguments_stream(
-<<<<<<< HEAD
                     structured_case, authorities, chat_history=chat_history, is_retry=is_retry
-=======
-                    structured_case,
-                    authorities,
-                    chat_history=chat_history,
-                    is_retry=is_retry,
->>>>>>> 9cca5f7 (feat: redesign frontend and add new components)
                 ):
                     # Send delta event
                     yield f"event: delta\ndata: {json.dumps({'text': chunk})}\n\n"
@@ -725,12 +719,11 @@ async def generate_opposition_v2(
             
             try:
                 # Try to parse the LLM's JSON response
-                # Sometimes LLMs wrap in markdown, strip it if present
+                # Use regex to robustly extract the JSON array, ignoring preamble
                 clean_text = full_text.strip()
-                if clean_text.startswith("```json"):
-                    clean_text = clean_text[7:]
-                if clean_text.endswith("```"):
-                    clean_text = clean_text[:-3]
+                match = re.search(r'\[.*\]', clean_text, re.DOTALL)
+                if match:
+                    clean_text = match.group(0)
                     
                 generated_json = json.loads(clean_text)
                 verified_args, g_v = verify_citations(generated_json, authorities)
@@ -748,10 +741,9 @@ async def generate_opposition_v2(
                         
                     # Verify again
                     clean_text_retry = full_text_retry.strip()
-                    if clean_text_retry.startswith("```json"):
-                        clean_text_retry = clean_text_retry[7:]
-                    if clean_text_retry.endswith("```"):
-                        clean_text_retry = clean_text_retry[:-3]
+                    match = re.search(r'\[.*\]', clean_text_retry, re.DOTALL)
+                    if match:
+                        clean_text_retry = match.group(0)
                         
                     generated_json_retry = json.loads(clean_text_retry)
                     verified_args, g_v = verify_citations(generated_json_retry, authorities)
@@ -816,7 +808,9 @@ async def analyze_weaknesses_route(
     """
     logger.info("analyze-weaknesses called | case_id=%s", payload.case_facts.case_id)
     try:
-        analysis = await analyze_weaknesses(payload.case_facts, payload.chat_history)
+        case_facts_dict = payload.case_facts.model_dump() if hasattr(payload.case_facts, "model_dump") else payload.case_facts.dict()
+        chat_history_dict = [m.model_dump() if hasattr(m, "model_dump") else m.dict() for m in payload.chat_history]
+        analysis = await analyze_simulation_weaknesses(case_facts_dict, chat_history_dict)
         return WeaknessAnalysisResponse(
             weaknesses=analysis.get("weaknesses", []),
             improvement_tips=analysis.get("improvement_tips", [])

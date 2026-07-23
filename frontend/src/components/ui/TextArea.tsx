@@ -1,49 +1,35 @@
-import React, { useState } from 'react';
-import styles from './TextArea.module.css';
+// =============================================================================
+// components/ui/textarea.tsx
+// Matches Input styling exactly so form layouts look consistent.
+// =============================================================================
 
-interface TextAreaProps extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {
-  maxLength?: number;
-  showCharCount?: boolean;
+import React from 'react';
+
+export interface TextareaProps extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {
+  error?: boolean;
 }
 
-export const TextArea: React.FC<TextAreaProps> = ({
-  maxLength,
-  showCharCount = true,
-  className = '',
-  onChange,
-  value,
-  defaultValue,
-  ...props
-}) => {
-  const isControlled = value !== undefined;
-  const initialCount = isControlled ? String(value).length : (defaultValue ? String(defaultValue).length : 0);
-  const [charCount, setCharCount] = useState(initialCount);
-
-  const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    setCharCount(e.target.value.length);
-    if (onChange) {
-      onChange(e);
-    }
-  };
-
-  const isNearLimit = maxLength && charCount >= maxLength * 0.9;
-  const isAtLimit = maxLength && charCount >= maxLength;
-
-  return (
-    <div className={`${styles.container} ${className}`}>
+export const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
+  ({ className = '', error, ...props }, ref) => {
+    return (
       <textarea
-        className={styles.textarea}
-        maxLength={maxLength}
-        onChange={handleChange}
-        value={value}
-        defaultValue={defaultValue}
+        ref={ref}
+        className={[
+          'w-full rounded-md border bg-white px-3.5 py-2 text-sm text-ink-800',
+          'placeholder:text-slate-400 leading-relaxed resize-y',
+          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brass-500/20',
+          'hover:border-slate-300 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:opacity-70',
+          'transition',
+          error
+            ? 'border-signal-danger focus-visible:ring-signal-danger/30'
+            : 'border-slate-200 focus-visible:border-brass-400',
+          className,
+        ]
+          .filter(Boolean)
+          .join(' ')}
         {...props}
       />
-      {showCharCount && maxLength && (
-        <div className={`${styles.counter} ${isAtLimit ? styles.atLimit : isNearLimit ? styles.nearLimit : ''}`}>
-          [Word count: {charCount}/{maxLength}]
-        </div>
-      )}
-    </div>
-  );
-};
+    );
+  },
+);
+Textarea.displayName = 'Textarea';

@@ -1,328 +1,125 @@
 # Opposing-Argument Simulator
 
-> Intelligent adversarial case preparation for self-represented litigants
+**A jurisdiction-grounded RAG tool that simulates the opposing side's arguments for self-represented litigants.**
 
-[![Python](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/)
-[![FastAPI](https://img.shields.io/badge/FastAPI-0.111+-green.svg)](https://fastapi.tiangolo.com/)
-[![Next.js](https://img.shields.io/badge/Next.js-14+-black.svg)](https://nextjs.org/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+This README is based on a direct read of the codebase (not the project report), so the numbers below are what's actually in the repo today.
 
 ---
 
-## Problem Statement
+## What it actually does
 
-Self-represented litigants face an insurmountable structural disadvantage: they enter hearings without knowledge of the opposing party's likely arguments, counterevidence, or precedents—often facing counsel armed with legal expertise and discovery.
+A user describes their case in plain language through a multi-step intake form. The backend:
 
-Existing legal-tech solutions address only half the problem:
-- **Document assembly tools** help draft filings
-- **Legal guides** explain procedures in plain language
-- **None** simulate realistic adversarial responses
+1. Extracts structured case facts (parties, claim type, jurisdiction, disputed facts, key dates) using an LLM, with a regex-based fallback if extraction fails.
+2. Embeds those facts and queries a Qdrant vector database for matching California statutes and case law, filtered strictly by jurisdiction.
+3. Feeds only the retrieved authorities to an LLM prompted to role-play opposing counsel, generating counter-arguments as an SSE stream.
+4. Verifies every citation the model produces against the retrieved set. Anything not traceable back to a retrieved authority is flagged, and if grounding is too weak (fewer than 3 qualifying authorities), the system refuses to generate rather than guess.
+5. Lets the user draft rebuttals per argument with LLM-generated hints, then export the whole session as a PDF (built client-side with jsPDF).
 
-This creates a preparation gap that undermines access to justice.
-
----
-
-## Solution Overview
-
-The **Opposing-Argument Simulator** bridges this gap by delivering jurisdiction-grounded adversarial preparation in four stages:
-
-1. **Guided Intake** – Converts plain-language case narrative into structured facts
-2. **Jurisdiction-Specific Retrieval** – Retrieves 500+ real California statutes and case law via RAG
-3. **Adversarial Simulation** – Generates opposing counsel's likely arguments, objections, and counterevidence
-4. **Rebuttal Preparation** – Helps litigants draft rebuttals with safety framing and mandatory disclaimers
-
-**Key Innovation:** A hard-gate verification system prevents hallucinated citations. If the system cannot ground an argument in retrieved law, it refuses to include it—no confident fabrications.
+Everything is framed as case-preparation practice, not legal advice — there's a mandatory disclaimer modal and a persistent banner in the UI.
 
 ---
 
-## Features
+## Real vs. reported numbers
 
-| Feature | Benefit |
-|---------|---------|
-| **Multi-Step Intake Wizard** | Extracts structured case facts from unstructured narrative without requiring legal knowledge |
-| **Real Legal Knowledge Base** | 500+ jurisdiction-verified California statutes and case law entries |
-| **Strict Jurisdiction Filtering** | Retrieves only applicable law; eliminates cross-jurisdiction confusion |
-| **Adversarial Role-Play Engine** | Simulates opposing counsel's arguments grounded in retrieved authorities |
-| **Citation Verification Gate** | Every argument is checked against source material; unverifiable claims are flagged or rejected |
-| **Confidence Scoring** | Each argument includes a confidence level tied to source traceability |
-| **Structured Rebuttal Builder** | Per-argument rebuttal drafting with AI-generated preparation hints |
-| **PDF Export & Court Ready** | Generates printable preparation report with mandatory legal disclaimer |
-| **Mandatory Safety Framing** | Full-screen disclaimer + persistent banner—users cannot miss "not legal advice" notice |
+The project's own status report claims some things the code doesn't back up. Worth knowing before you trust either document:
 
----
+| Claim | Report says | Codebase actually has |
+|---|---|---|
+| Knowledge base size | "500+" CA statutes/cases | **88 vectors** in the shipped local Qdrant snapshot (`api/qdrant_data`); `EVALUATION.md` itself describes the seed as "60+ real California precedents" plus a handful of statute sections |
+| LLM provider | README says "Anthropic Claude API" | Code (`llm_service.py`, `requirements.txt`) calls **Groq's `llama-3.3-70b-versatile`** — no Anthropic SDK anywhere |
+| Containerization | "Fully containerized," Docker + Railway deployment | **No `Dockerfile` or `docker-compose.yml` exists in the repo.** Deployment is actually configured for Vercel serverless (Python runtime) per `vercel.json` and `DEPLOYMENT_CHECKLIST.md` — Railway isn't referenced there at all |
+| PDF export | Report lists it as "planned for next phase" | It's **already implemented** — `frontend/src/services/pdfExport.ts` using jsPDF + jspdf-autotable, wired into `export.tsx` |
+| Grounding score (G_v = 0.83, 82% traceability) | Reported | **This one checks out.** `EVALUATION.md` and `evaluation/results_latest.json` agree scenario-by-scenario — real per-scenario data, not just a summary number |
 
-## How It Works
-
-### Stage 1: Guided Intake & Fact Structuring
-
-Users walk through a conversational wizard:
-- **Case Type** (small claims, landlord–tenant, family court, etc.)
-- **Parties** (names, roles)
-- **Jurisdiction** (state, county)
-- **Facts** (plain-language narrative)
-- **Dates & Timeline** (key events)
-- **Evidence** (documents, communications, witnesses)
-
-The LLM extracts a structured schema (`StructuredCaseV2`) containing jurisdiction, claim type, parties, disputed facts, and key evidence. This ensures the system has a consistent, machine-readable representation before proceeding.
-
-### Stage 2: Jurisdiction-Grounded Retrieval
-
-The structured facts are embedded and queried against a **Qdrant vector database** containing 500+ real California statutes and case law. A hard metadata filter ensures:
-- Only laws from the selected jurisdiction are retrieved
-- Outdated or repealed statutes are excluded
-- Confidence scoring reflects source reliability
-
-This step eliminates the hallucination risk endemic to general-purpose LLMs interrogating undefined legal knowledge.
-
-### Stage 3: Adversarial Simulation & Verification
-
-The LLM is prompted to role-play opposing counsel using only the retrieved authorities. It generates:
-- Counter-arguments
-- Procedural objections
-- Counterevidence
-- Requested remedies
-
-A **hard-gate verifier** then validates every citation:
-- **High Confidence** – Citation exists and is accurately summarized in the knowledge base
-- **Low / Unverified** – Citation could not be traced; the argument is flagged
-- **No Grounding** – If insufficient law is found, the simulation is refused entirely with a clear error message
-
-### Stage 4: Rebuttal Preparation & Export
-
-Users review each opposing argument alongside:
-- The source statute or case law
-- Confidence level and traceability
-- AI-generated rebuttal hints
-
-They can then draft rebuttals in a structured builder and export a complete preparation report (PDF) that includes a mandatory legal disclaimer and remains court-ready.
+Net effect: the eval methodology and hard-gate safety design are legitimate and match the code. The knowledge-base size, model provider, and deployment/containerization claims in the report are overstated or wrong.
 
 ---
 
-## Technical Architecture
+## Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                     Frontend (Next.js 14)                   │
-│         Intake Wizard  │  Simulation Display  │  Export     │
-└──────────────┬──────────────────────────────────────────────┘
-               │
-┌──────────────▼──────────────────────────────────────────────┐
-│                 Backend API (FastAPI)                       │
-│  ┌──────────────┬────────────────┬────────────────────────┐ │
-│  │ Case Intake  │  RAG Pipeline  │ Adversarial Engine    │ │
-│  │ (LLM Extract)│ (Qdrant Query) │ (Role-Play + Verify)  │ │
-│  └──────────────┴────────────────┴────────────────────────┘ │
-└──────────────┬──────────────────────────────────────────────┘
-               │
-┌──────────────▼──────────────────────────────────────────────┐
-│             Knowledge Base (Qdrant Vector DB)               │
-│  500+ California Statutes & Case Law (Jurisdiction-Tagged)  │
-└─────────────────────────────────────────────────────────────┘
+Next.js 14 frontend (intake wizard, streaming argument display,
+rebuttal builder, PDF export, dashboard, saved cases, retrieval-debug page)
+        │
+        ▼
+FastAPI backend (api/main.py)
+  ├─ /api/intake                    → LLM extraction → StructuredCaseV2
+  ├─ /api/generate-opposition       → legacy Milestone-1 mock route (still present)
+  ├─ /api/generate-opposition-v2    → real pipeline: retrieve → stream → verify
+  ├─ /api/rebuttal-hints            → LLM-generated rebuttal starting points
+  └─ /api/analyze-weaknesses        → post-session weakness analysis
+        │
+        ▼
+Qdrant (local file-backed store by default, or Qdrant Cloud via env vars)
+  collection: caselaw_authorities, 384-dim MiniLM embeddings
 ```
 
-### Technology Stack
-
-- **Backend:** Python 3.11, FastAPI, Anthropic Claude API
-- **Frontend:** Next.js 14, React, Tailwind CSS
-- **Vector Database:** Qdrant
-- **Containerization:** Docker, docker-compose
-- **Deployment:** Railway (backend), Vercel (frontend)
+The backend was built up in explicit milestones (visible in code comments): scaffold → real intake extraction → Qdrant retrieval → SSE streaming + citation verification → rebuttal workspace/PDF export → rate limiting and hardening. The Milestone-1 mock route (`/api/generate-opposition`) is still in the codebase alongside the real one (`/api/generate-opposition-v2`) — it hasn't been removed.
 
 ---
 
-## Quick Start
+## Tech stack (confirmed from code)
 
-### Prerequisites
-- Python 3.11+
-- Node.js 18+
-- Docker (for Qdrant)
-- API keys: Anthropic Claude API
+| Layer | Technology |
+|---|---|
+| Backend | Python 3.11, FastAPI, Uvicorn |
+| LLM | Groq Cloud API, `llama-3.3-70b-versatile` |
+| Embeddings | `sentence-transformers/all-MiniLM-L6-v2` |
+| Vector DB | Qdrant (local file-mode by default; Qdrant Cloud if `QDRANT_URL` is set) |
+| Rate limiting | slowapi |
+| Frontend | Next.js 14, TypeScript, Tailwind CSS, Framer Motion |
+| PDF export | jsPDF + jspdf-autotable (client-side) |
+| Deployment | Vercel (both frontend and Python serverless functions), per `vercel.json` |
 
-### 1. Clone & Install
+---
+
+## Safety mechanisms actually in the code
+
+- **Jurisdiction isolation:** retrieval applies a hard Qdrant metadata filter on jurisdiction before ranking — cases from the wrong state can't be retrieved (`retrieval_service.py`).
+- **Insufficient-grounding gate:** fewer than 3 qualifying authorities → the SSE stream emits an `INSUFFICIENT_GROUNDING` error and stops instead of generating (`main.py`).
+- **No-authorities gate:** zero retrieved authorities → `NO_AUTHORITIES` error, same refusal behavior.
+- **Citation verification (G_v):** every citation the LLM outputs is checked against the exact retrieved set; unverified ones are flagged and drop the argument's confidence from High to Medium (`citation_verifier.py`).
+- **Auto-retry on weak grounding:** if G_v < 0.90 on first generation, the pipeline regenerates once before finalizing.
+- **Prompt-injection stripping:** free-text narrative fields are regex-scrubbed for common injection patterns (`"ignore previous instructions"`, `[SYSTEM]`, etc.) before reaching the LLM.
+- **Logging discipline:** request middleware logs method/path/latency/status only — case narratives and generated argument text are explicitly never logged (called out in code comments as "CRITIC 3" compliance).
+
+---
+
+## Local setup
+
+Requirements: Python 3.11+, Node.js 18+
 
 ```bash
-git clone https://github.com/yourusername/opposing-argument-simulator.git
-cd opposing-argument-simulator
-```
-
-### 2. Set Up Qdrant & Knowledge Base
-
-**Option A: Qdrant Cloud (Recommended)**
-
-1. Create a free cluster at [cloud.qdrant.io](https://cloud.qdrant.io)
-2. Copy the API URL and API key
-3. Create `api/.env`:
-   ```
-   QDRANT_URL=https://your-cluster.qdrant.io
-   QDRANT_API_KEY=your-api-key
-   ANTHROPIC_API_KEY=your-anthropic-key
-   ```
-
-**Option B: Local Qdrant via Docker**
-
-```bash
-docker run -p 6333:6333 qdrant/qdrant
-```
-
-Then update `api/.env`:
-```
-QDRANT_URL=http://localhost:6333
-ANTHROPIC_API_KEY=your-anthropic-key
-```
-
-### 3. Seed the Knowledge Base
-
-```bash
+# Backend
 cd api
 python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
+source venv/bin/activate        # Windows: venv\Scripts\activate
 pip install -r requirements.txt
-python scripts/build_knowledge_base.py
-```
-
-### 4. Start the Backend
-
-```bash
-cd api
+# .env needs: GROQ_API_KEY (required), QDRANT_URL + QDRANT_API_KEY (optional — falls back to local file-mode Qdrant)
 uvicorn main:app --reload --port 8000
-```
 
-Backend will be available at `http://localhost:8000`
-
-### 5. Start the Frontend
-
-In a new terminal:
-
-```bash
+# Frontend
 cd frontend
 npm install
-npm run dev
+npm run dev      # http://localhost:3000
 ```
 
-Frontend will be available at `http://localhost:3000`
+If `QDRANT_URL` isn't set, the backend uses the pre-seeded local snapshot in `api/qdrant_data/` (88 vectors) rather than a live cluster — fine for trying it out, but that's the actual size of the knowledge base you'll be querying against, not 500+.
 
-### 6. First Run
-
-- Navigate to `http://localhost:3000`
-- Accept the mandatory disclaimer
-- Begin your case intake
+To reseed or expand the knowledge base: `api/scripts/build_knowledge_base.py`, plus separate ingestion scripts for CA statutes, CourtListener, and Case Access Project (CAP) case law.
 
 ---
 
-## Evaluation Results
+## What's genuinely solid here
 
-**Test Set:** 10 realistic California landlord–tenant and small-claims scenarios
+- The hard-gate refusal logic is real, tested against actual scenarios, and matches its own evaluation data.
+- The frontend is considerably more built-out than "MVP" implies — dashboard, saved cases, a retrieval-debug page, streaming argument display, and a working PDF export all exist.
+- The evaluation numbers (G_v = 0.83, 18/22 citations traceable) are reproducible from `evaluation/results_latest.json`, not just asserted.
 
-| Metric | Result |
-|--------|--------|
-| **Average Grounding Score (G_v)** | 0.83 |
-| **Scenarios with G_v ≥ 0.90** | 6 / 10 (60%) |
-| **Citations Traceable to Knowledge Base** | 18 / 22 (82%) |
-| **Hallucinated Cases / Statutes** | 0 |
-| **User Comprehension (Post-Sim)** | 87% reported improved case understanding |
+## What to fix before calling it production-ready
 
-**Key Finding:** The hard-gate architecture successfully prevents confident hallucinations. When grounding is weak, the system either refuses the simulation or explicitly marks arguments as unverified.
-
-📄 **Full Evaluation Report:** See `evaluation/EVALUATION.md`
-
----
-
-## Ethical Framework & Safety
-
-This tool is explicitly **not a substitute for professional legal advice**. It is a case-preparation practice aid for self-represented litigants.
-
-### Built-In Safeguards
-
-✅ **Mandatory Disclaimer Modal** – Full-screen notice on app launch; users must acknowledge before proceeding  
-✅ **Persistent Safety Banner** – "This tool provides case-preparation practice, not legal advice. Consult an attorney."  
-✅ **Grounding Verification** – No simulation is generated without jurisdiction-specific legal grounding  
-✅ **Citation Transparency** – Every argument is traceable to a source; unverified claims are flagged  
-✅ **No PII Collection** – Unless explicitly consented, no personally identifiable information is stored  
-✅ **Clear Export Disclaimer** – PDF reports include mandatory legal warning  
-
-### User Responsibility
-
-Self-represented litigants should:
-- Verify all critical arguments with an attorney or legal aid organization before relying on them in court
-- Treat this tool as a preparation aid, not legal counsel
-- Seek professional review of any arguments before filing or presenting in court
-
----
-
-## Proposal Alignment
-
-This implementation fulfills all objectives and expected outcomes from the original research proposal:
-
-| Proposal Objective | Implementation Status |
-|------|------|
-| Case intake & fact structuring | ✅ Multi-step wizard + LLM extraction to structured schema |
-| Jurisdiction-grounded retrieval | ✅ RAG pipeline over 500+ California entries with strict metadata filtering |
-| Opposing-argument simulation engine | ✅ Adversarial prompt with citation-constrained generation + role-play |
-| Rebuttal preparation & safety framing | ✅ Structured rebuttal builder + mandatory disclaimer modal & persistent banner |
-
-| Expected Outcome | Status |
-|---|---|
-| End-to-end validated pipeline | ✅ Functional with traceable citations |
-| Jurisdictional knowledge base | ✅ 500+ real CA statutes & cases |
-| Deployable hearing-preparation tool | ✅ Fully containerized & tested |
-| Evaluated grounding accuracy | ✅ Documented G_v = 0.83, 82% citation traceability |
-
----
-
-## Deployment
-
-The application is fully containerized and production-ready.
-
-### Deploy to Railway (Backend)
-
-1. Connect your GitHub repo to Railway
-2. Set environment variables (Qdrant URL, API keys)
-3. Railway will auto-detect `Dockerfile` and deploy
-
-### Deploy to Vercel (Frontend)
-
-1. Connect your GitHub repo to Vercel
-2. Vercel will auto-detect `next.config.js` and deploy
-3. Update API endpoint in frontend `.env` to your Railway backend URL
-
-**Full deployment guide:** See `DEPLOYMENT.md`
-
----
-
-## Roadmap
-
-- [ ] Expand knowledge base to all 50 US states
-- [ ] Add federal civil litigation support
-- [ ] Integrate real-time court docket lookup
-- [ ] Multi-language support
-- [ ] Mobile app (React Native)
-- [ ] Integration with legal aid networks for referral
-- [ ] Enhanced citation tracking and precedent clustering
-
----
-
-## Contributing
-
-Contributions are welcome! Please:
-
-1. Fork the repository
-2. Create a feature branch: `git checkout -b feature/your-feature`
-3. Commit your changes: `git commit -m "Add your feature"`
-4. Push to the branch: `git push origin feature/your-feature`
-5. Open a pull request
-
-**Development Standards:**
-- Python: PEP 8, type hints required
-- JavaScript/TypeScript: ESLint + Prettier
-- Commits: Conventional commits
-
----
-## Acknowledgments
-
-This project was developed to address a critical gap in access-to-justice technology. Special thanks to:
-- The California self-represented litigant community for framing the problem
-- Legal aid organizations for insights on case preparation workflows
-- Anthropic for supporting responsible AI research
-
----
-
+- Reseed with a knowledge base that actually matches the "500+" claim, or correct the claim.
+- Decide on and document the actual LLM provider (Groq, currently) instead of referencing Anthropic Claude in user-facing docs.
+- Either add the Dockerfile/docker-compose the docs promise, or drop the containerization claims and document the real Vercel serverless deployment path.
+- Remove or clearly deprecate the Milestone-1 mock route so it can't be hit in production by mistake.

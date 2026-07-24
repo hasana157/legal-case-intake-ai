@@ -595,23 +595,13 @@ class WeaknessAnalysisRequest(BaseModel):
     case_facts: StructuredCaseV2
     chat_history: List[ChatMessage]
 
-class WeaknessAnalysisResponse(BaseModel):
-    weaknesses: List[str]
-    improvement_tips: List[str]
+WeaknessAnalysisResponse = None  # alias — see AnalyzeWeaknessesResponse below
 
 # =============================================================================
 # /api/generate-opposition-v2 — Milestone 4 (SSE streaming & verification)
 # Milestone 6: Rate limited, narrative sanitized, Qdrant fallback hardened.
 # =============================================================================
 
-class ChatMessage(BaseModel):
-    role: str = Field(..., description='"user" or "opponent"')
-    content: str
-
-
-class SimulationRequest(BaseModel):
-    case_facts: StructuredCaseV2
-    chat_history: List[ChatMessage] = Field(default_factory=list)
 
 
 class AnalyzeWeaknessesRequest(BaseModel):
@@ -833,33 +823,6 @@ async def generate_opposition_v2(
     )
 
 # =============================================================================
-# /api/analyze-weaknesses — Strategic Review at End of Debate
-# =============================================================================
-
-@app.post(
-    "/api/analyze-weaknesses",
-    response_model=WeaknessAnalysisResponse,
-    tags=["simulation"],
-    summary="Analyze user's performance and identify 3 key weaknesses",
-)
-async def analyze_weaknesses_route(
-    payload: WeaknessAnalysisRequest
-) -> WeaknessAnalysisResponse:
-    """
-    Strategic litigation review of the entire debate history.
-    """
-    logger.info("analyze-weaknesses called | case_id=%s", payload.case_facts.case_id)
-    try:
-        case_facts_dict = payload.case_facts.model_dump() if hasattr(payload.case_facts, "model_dump") else payload.case_facts.dict()
-        chat_history_dict = [m.model_dump() if hasattr(m, "model_dump") else m.dict() for m in payload.chat_history]
-        analysis = await analyze_simulation_weaknesses(case_facts_dict, chat_history_dict)
-        return WeaknessAnalysisResponse(
-            weaknesses=analysis.get("weaknesses", []),
-            improvement_tips=analysis.get("improvement_tips", [])
-        )
-    except Exception as e:
-        logger.error(f"Error in analyze-weaknesses route: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
 
 # =============================================================================
 # /api/rebuttal-hints — Milestone 5 (Lightweight LLM Helper)

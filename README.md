@@ -37,10 +37,9 @@ This application assists individuals representing themselves in legal proceeding
 
 ## 🏗 System Architecture
 
-```
+
 <img width="1250" height="718" alt="image" src="https://github.com/user-attachments/assets/017943e6-c7e3-4f22-ac07-a701e9a0e943" />
 
-```
 
 ## 📊 Evaluation Results
 

@@ -1,0 +1,92 @@
+[
+  {
+    "id": 1,
+    "narrative": "I rent a one-bedroom apartment in Los Angeles. The ceiling in my bedroom has been leaking every time it rains for over two months. I sent my landlord three written requests to fix it. She keeps saying she will but never does. Now there's visible black mold on the wall. I want to know what defenses I have if she tries to evict me for non-payment because I've been withholding rent.",
+    "jurisdiction": "California",
+    "claim_type": "landlord_tenant",
+    "plaintiff_role": "tenant",
+    "expected_issues": ["habitability", "mold", "repair and deduct", "retaliatory eviction", "rent withholding defense"],
+    "expected_citations": ["Cal. Civ. Code § 1941", "Cal. Civ. Code § 1941.1", "Cal. Civ. Code § 1942", "Green v. Superior Court"]
+  },
+  {
+    "id": 2,
+    "narrative": "I moved out of my San Francisco apartment in clean condition three months ago. My landlord has not returned my $3,200 security deposit and has not sent me any itemized statement. She stopped responding to my texts and emails. I want to sue her in small claims court.",
+    "jurisdiction": "California",
+    "claim_type": "security_deposit",
+    "plaintiff_role": "tenant",
+    "expected_issues": ["security deposit return", "21-day rule", "itemized statement", "bad faith", "statutory damages"],
+    "expected_citations": ["Cal. Civ. Code § 1950.5", "Penner v. Falk"]
+  },
+  {
+    "id": 3,
+    "narrative": "I live in a rent-controlled apartment in Oakland. I complained to the city building inspector about pest infestations and broken heaters. Two weeks after the inspector cited my landlord, I received a 30-day notice to vacate. My rent is paid up to date and I have not violated any lease terms.",
+    "jurisdiction": "California",
+    "claim_type": "retaliatory_eviction",
+    "plaintiff_role": "tenant",
+    "expected_issues": ["retaliatory eviction", "180-day presumption", "protected activity", "just cause eviction", "rent control"],
+    "expected_citations": ["Cal. Civ. Code § 1942.5", "Knight v. Hallsthammar", "Birkenfeld v. City of Berkeley"]
+  },
+  {
+    "id": 4,
+    "narrative": "My landlord changed my locks while I was at work last Tuesday without any court order or notice. My belongings are inside. He said I owe two months rent and this is his way to make sure I pay. I have nowhere to stay.",
+    "jurisdiction": "California",
+    "claim_type": "self_help_eviction",
+    "plaintiff_role": "tenant",
+    "expected_issues": ["self-help eviction", "lockout", "statutory damages", "unlawful detainer procedure", "actual damages"],
+    "expected_citations": ["Cal. Civ. Code § 789.3", "Jordan v. Talbot", "Hale v. Morgan"]
+  },
+  {
+    "id": 5,
+    "narrative": "I am a landlord in Sacramento. My tenant has not paid rent for three months, owes $4,800, and is ignoring all my calls and messages. I want to evict them and recover the back rent.",
+    "jurisdiction": "California",
+    "claim_type": "landlord_tenant",
+    "plaintiff_role": "landlord",
+    "expected_issues": ["non-payment of rent", "three-day notice", "unlawful detainer", "back rent recovery", "duty to mitigate"],
+    "expected_citations": ["Cal. Code Civ. Proc. § 1161", "Ginsberg v. Gamson"]
+  },
+  {
+    "id": 6,
+    "narrative": "My heating system broke in December. I notified my landlord in writing and he said he would fix it but took 45 days to do so. During that time, I bought space heaters and spent $380. I also had to take three sick days from work because my child got bronchitis from the cold. I want to be compensated.",
+    "jurisdiction": "California",
+    "claim_type": "habitability_damages",
+    "plaintiff_role": "tenant",
+    "expected_issues": ["habitability violation", "heating", "repair and deduct", "medical expenses", "consequential damages"],
+    "expected_citations": ["Cal. Civ. Code § 1941.1", "Cal. Civ. Code § 1942", "Medina v. Air-Rite Heating & Cooling"]
+  },
+  {
+    "id": 7,
+    "narrative": "I want to sue my former landlord in small claims court for $7,500 in damages for mold that caused me respiratory problems. I have photos, a doctor's letter, and emails where the landlord acknowledged the mold but did nothing for four months.",
+    "jurisdiction": "California",
+    "claim_type": "small_claims",
+    "plaintiff_role": "tenant",
+    "expected_issues": ["small claims jurisdiction", "mold liability", "medical damages", "evidence standards", "habitability tort"],
+    "expected_citations": ["Cal. Code Civ. Proc. § 116.220", "Andrews v. Mobile Aire Estates", "Stoiber v. Honeychuck"]
+  },
+  {
+    "id": 8,
+    "narrative": "My landlord entered my apartment six times in the last month without giving any notice. Once he came at 10pm. He says he owns the property and can check on it whenever he wants. I want to know if this is legal and what I can do.",
+    "jurisdiction": "California",
+    "claim_type": "quiet_enjoyment",
+    "plaintiff_role": "tenant",
+    "expected_issues": ["24-hour notice requirement", "right of entry", "quiet enjoyment", "harassment", "damages"],
+    "expected_citations": ["Cal. Civ. Code § 1954", "Gould v. Grubb", "Salehi v. Surfside III"]
+  },
+  {
+    "id": 9,
+    "narrative": "I moved out of my apartment 25 days ago. My landlord sent me an itemized statement claiming $2,900 in deductions for cleaning and painting, but provided no receipts. The apartment was in excellent condition when I left. I have move-out photos and video.",
+    "jurisdiction": "California",
+    "claim_type": "security_deposit",
+    "plaintiff_role": "tenant",
+    "expected_issues": ["itemized statement", "receipts required", "normal wear and tear", "statutory damages", "bad faith withholding"],
+    "expected_citations": ["Cal. Civ. Code § 1950.5", "Gold v. Los Angeles Democratic League", "Scott v. Pac. Gas & Elec. Co."]
+  },
+  {
+    "id": 10,
+    "narrative": "My landlord gave me a notice that my rent is increasing by 15% starting next month. I have lived here for 3 years. The building is a multi-unit apartment complex in Los Angeles built in 2005. I want to know if this increase is legal.",
+    "jurisdiction": "California",
+    "claim_type": "rent_increase",
+    "plaintiff_role": "tenant",
+    "expected_issues": ["AB 1482 rent cap", "5% plus CPI limit", "Tenant Protection Act", "exempt properties", "just cause eviction"],
+    "expected_citations": ["Cal. Civ. Code § 1947.12", "Cal. Civ. Code § 1946.2", "Stein v. U.S. Bancorp"]
+  }
+]

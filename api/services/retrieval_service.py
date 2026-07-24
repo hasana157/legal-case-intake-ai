@@ -72,7 +72,7 @@ COLLECTION_NAME = "caselaw_authorities"
 def retrieve_authorities(
     structured_case: StructuredCaseV2,
     k: int = 10,
-    score_threshold: float = 0.60
+    score_threshold: float = 0.30
 ) -> RetrievalResponse:
     """
     Queries the vector database for case law relevant to the structured case facts.

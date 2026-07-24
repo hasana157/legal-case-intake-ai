@@ -334,7 +334,7 @@ CASE_14_LABELS = {"case_id": "CASE-14", "jurisdiction": "Illinois",
 CASE_15 = _make(
     parties=[Party(name="Tyler Brooks", role=PartyRole.plaintiff),
               Party(name="Pacific Northwest Logistics Co.", role=PartyRole.defendant)],
-    claim_type=ClaimTypeEnum.negligence,
+    claim_type=ClaimTypeEnum.personal_injury,
     jurisdiction="Washington",
     key_dates=[KeyDate(label="Accident date", date="2024-05-03"),
                KeyDate(label="Police report date", date="2024-05-03")],

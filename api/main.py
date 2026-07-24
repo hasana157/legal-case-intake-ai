@@ -683,18 +683,60 @@ async def generate_opposition_v2(
                     authorities = retrieval_resp.authorities
                     insufficient_grounding = retrieval_resp.insufficient_grounding
                 except Exception as qdrant_err:
-                    # CRITIC 2: User sees a calm message, not a stack trace
                     logger.error(
                         "Qdrant retrieval failed | case_id=%s | error=%s",
                         structured_case.case_id,
                         type(qdrant_err).__name__,
                         extra={"request_id": getattr(request.state, 'request_id', '-')},
                     )
-                    _qdrant_status = "Our legal database is temporarily unavailable. Generating general procedural arguments only."
-                    yield f"event: heartbeat\ndata: {json.dumps({'status': _qdrant_status})}\n\n"
-                    authorities = []  # Graceful fallback: empty authorities
-                    insufficient_grounding = False
-            
+                    # ── HARD GATE: Qdrant is down → refuse to hallucinate ─────────────
+                    _no_db_msg = (
+                        "The legal database is temporarily unavailable. "
+                        "Simulation is disabled to prevent ungrounded arguments. "
+                        "Please restart the backend and try again."
+                    )
+                    yield f"event: error\ndata: {json.dumps({'error': _no_db_msg, 'code': 'DB_UNAVAILABLE'})}\n\n"
+                    return
+
+            # ── HARD GATE: No authorities retrieved → refuse to hallucinate ─────────
+            if not authorities:
+                _no_auth_msg = (
+                    "Simulation halted: the retrieval layer found no jurisdiction-specific "
+                    f"authorities for '{structured_case.jurisdiction}' matching this case type. "
+                    "This tool only generates arguments grounded in retrieved law. "
+                    "Please verify that the knowledge base has been seeded for this jurisdiction "
+                    "(run: python api/scripts/build_knowledge_base.py) and that the jurisdiction "
+                    "field in your case matches an available state."
+                )
+                logger.warning(
+                    "Hard gate triggered — no authorities for jurisdiction=%s claim_type=%s | case_id=%s",
+                    structured_case.jurisdiction,
+                    getattr(structured_case, 'claim_type', 'unknown'),
+                    structured_case.case_id,
+                    extra={"request_id": getattr(request.state, 'request_id', '-')},
+                )
+                yield f"event: error\ndata: {json.dumps({'error': _no_auth_msg, 'code': 'NO_AUTHORITIES'})}\n\n"
+                return
+
+            # ── HARD GATE: Insufficient grounding → refuse to hallucinate ─────────
+            if insufficient_grounding:
+                _low_ground_msg = (
+                    "Simulation halted: the retrieval layer found fewer strongly matching "
+                    "authorities than required to generate a reliably grounded simulation. "
+                    "This tool refuses to generate arguments that cannot be traced to "
+                    "verifiable, retrieved legal sources. "
+                    "Please try refining your case narrative, or select a jurisdiction with "
+                    "a larger seeded knowledge base (currently California is best supported)."
+                )
+                logger.warning(
+                    "Hard gate triggered — insufficient grounding | jurisdiction=%s | case_id=%s",
+                    structured_case.jurisdiction,
+                    structured_case.case_id,
+                    extra={"request_id": getattr(request.state, 'request_id', '-')},
+                )
+                yield f"event: error\ndata: {json.dumps({'error': _low_ground_msg, 'code': 'INSUFFICIENT_GROUNDING'})}\n\n"
+                return
+
             yield f"event: heartbeat\ndata: {json.dumps({'status': 'Drafting arguments...'})}\n\n"
             
             # Helper to stream and accumulate

@@ -1,120 +1,107 @@
-# Opposing-Argument Simulator for Self-Represented Litigants
+# An Opposing-Argument Simulator for Self-Represented Litigants
 
-### *Empowering Access to Justice through Jurisdiction-Grounded Retrieval-Augmented Generation (RAG)*
+> **A Jurisdiction-Grounded RAG System for Access-to-Justice Technology**
 
----
+[![Python Version](https://img.shields.io/badge/python-3.10%2B-blue)](https://www.python.org/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.100%2B-green)](https://fastapi.tiangolo.com/)
+[![Qdrant](https://img.shields.io/badge/Qdrant-Vector%20DB-red)](https://qdrant.tech/)
 
-## ⚖️ Project Overview
+Millions of people navigate the civil justice system—small claims, tenancy, and family court—without attorney representation. This tool helps self-represented litigants prepare for court by generating the **most likely opposing arguments** they will face, fully grounded in jurisdiction-specific statutes and case law. 
 
-In civil justice systems, millions of litigants appear in court without legal representation, often facing represented opponents. This asymmetry of preparation—rather than the underlying merits of their case—is a major driver of adverse outcomes.
+This repository implements the architecture proposed in our research paper, specifically addressing the critical risks of LLM hallucination in legal contexts via strict retrieval constraints and hard-gated citation verification.
 
-The **Opposing-Argument Simulator** is an interactive, layperson-facing case-preparation tool designed to bridge this gap. By combining **Retrieval-Augmented Generation (RAG)** with **adversarial LLM simulation**, the application ingests a litigant's dispute narrative, extracts key case facts, retrieves relevant jurisdiction-specific case law and statutes, and simulates the counterarguments and objections opposing counsel is likely to present in a hearing.
+## Architecture
 
----
+The system utilizes a **three-stage pipeline**:
 
-## 🚀 Key Capabilities
+1. **Intake & Structuring**: Parses unstructured plain-language user narratives into a formal schema (parties, claims, disputed facts) using an LLM.
+2. **Jurisdiction-Grounded Retrieval**: Uses the structured facts to retrieve relevant case law and statutes from a local Qdrant vector database containing real California legal authorities.
+3. **Simulation & Citation Verification**: Generates potential opposing arguments using a constrained LLM prompt, and then passes them through a hard-gate citation verifier. If the LLM hallucinates cases or cites unretrieved material, the system penalizes confidence and explicitly warns the user.
 
-*   **Guided Case Intake & Parsing**: A 5-step wizard interface that structures raw dispute narratives into canonical case data (parties, claims, jurisdiction, dates, evidence).
-*   **Jurisdiction-Grounded RAG**: Semantic search using `sentence-transformers/all-MiniLM-L6-v2` against a local persistent **Qdrant Vector DB**, isolated strictly by state/jurisdiction boundaries (e.g., California, Texas, New York, Illinois).
-*   **Adversarial Simulation**: Real-time token streaming (via SSE) of counterarguments and evidentiary objections using `llama-3.3-70b-versatile` under an "Opposing Counsel" system persona.
-*   **Grounding Critic Loop ($G_v$)**: A verification engine that cross-references generated citations against retrieved authorities. If the grounding verification score ($G_v$) is below **90%**, it triggers an automatic critique-loop rewrite.
-*   **Premium Glassmorphic Rehearsal Workspace**: A sleek, modern UI designed with glassmorphic cards, responsive panels, strategic rebuttal guides, hints, and PDF report exporters.
+## Repository Contents
 
----
+* `api/` - The backend API written in FastAPI.
+  * `api/models/` - Pydantic schemas enforcing rigid data structures.
+  * `api/services/` - LLM generation, Qdrant retrieval, and the citation verifier.
+  * `api/scripts/` - Scripts to seed the Qdrant knowledge base.
+* `frontend/` - Static HTML/JS application (vanilla frontend).
+* `evaluation/` - Automated evaluation harness testing the system against 10 realistic legal scenarios.
 
-## 🛠️ Technology Stack
+## Setup & Installation
 
-| Layer | Technology | Purpose |
-| :--- | :--- | :--- |
-| **Frontend** | Next.js 14, React, TailwindCSS, Lucide icons, Framer Motion | Modern, glassmorphic layout & fluid wizard steps |
-| **API Backend** | FastAPI, Uvicorn, Pydantic V2 | High-performance, streaming SSE endpoint & input validation |
-| **Vector DB** | Qdrant (Persistent Local Mode) | Fast, isolated similarity search over legal corpora |
-| **Embeddings** | Sentence-Transformers (`all-MiniLM-L6-v2`) | Local 384-dimensional dense text embeddings |
-| **Generative LLM** | Groq API (`llama-3.3-70b-versatile`) | Fast, instruction-following fact extraction and adversarial generation |
+### 1. Prerequisites
+- Python 3.10+
+- The `uv` package manager (`pip install uv`)
+- An API key for Groq (LLM provider)
 
----
-
-## 📐 System Architecture
-
-```mermaid
-graph TD
-    User([Litigant]) -->|Wizard Intake Form| NextJS[Next.js Frontend]
-    NextJS -->|Raw Narrative & Metadata| FastAPI[FastAPI Backend]
-    FastAPI -->|Extract structured schema| Groq[Groq API Llama 70B]
-    Groq -->|Structured Case JSON| FastAPI
-    FastAPI -->|Query Vector Embeddings| Qdrant[(Qdrant DB)]
-    Qdrant -->|Filtered State Statutes & Cases| FastAPI
-    FastAPI -->|Stream Adversarial LLM Prompt| Groq
-    Groq -->|Token Stream + Citations| Verification{Critic Loop: G_v >= 90%?}
-    Verification -->|No: Self-Correction| Groq
-    Verification -->|Yes: Verified SSE Event| NextJS
-    NextJS -->|Rebuttal Rehearsal Panel| User
-```
-
----
-
-## 📦 Installation & Setup
-
-### Prerequisites
-*   Python 3.10+ (using `uv` is highly recommended)
-*   Node.js 18+ & `npm`
-*   A Groq API key
-
-### 1. Environment Configuration
-Create a `.env` file in the root of the project:
-```env
-GROQ_API_KEY=your-groq-api-key-here
-PORT=8000
-```
-
-### 2. Backend Installation & Database Seeding
+### 2. Environment Setup
 ```bash
-# Navigate to api directory
-cd api
+# Clone the repository
+git clone https://github.com/hasana157/legal-case-intake-ai.git
+cd legal-case-intake-ai
 
-# Install Python dependencies using uv
+# Set up the API virtual environment and install dependencies
+cd api
 uv venv
+# Windows
+venv\Scripts\activate
+# Unix/MacOS
+# source venv/bin/activate
+
 uv pip install -r requirements.txt
-
-# Seed the local Qdrant database with state statutes/cases
-uv run seed_qdrant.py
 ```
 
-### 3. Frontend Installation
-```bash
-# Navigate to frontend directory
-cd ../frontend
+### 3. Environment Variables
+Create a `.env` file in the `api` directory:
+```env
+# Required for generation
+GROQ_API_KEY=your_groq_api_key_here
 
-# Install Node dependencies
-npm install
+# Required for knowledge base seeding (if augmenting the KB)
+CENSUS_API_KEY=your_census_key_here 
 ```
 
----
-
-## ⚙️ Running Locally
-
-Start the backend and frontend in separate terminals:
-
-### Start FastAPI Server
+### 4. Seed the Knowledge Base
+To run the Opposing-Argument Simulator, you must seed the Qdrant vector database with California authorities:
 ```bash
 cd api
-uv run uvicorn main:app --reload --port 8000
+python scripts/build_knowledge_base.py
 ```
 
-### Start Next.js Development Server
+## Running the Application
+
+### Backend Server
+From the `api` directory, start the FastAPI server:
+```bash
+uvicorn main:app --reload
+```
+The API documentation will be available at `http://127.0.0.1:8000/docs`.
+
+### Frontend Client
+Serve the static frontend folder using any web server. For example:
 ```bash
 cd frontend
-npm run dev
+python -m http.server 3000
 ```
-Open [http://localhost:3000](http://localhost:3000) in your browser.
+Navigate to `http://localhost:3000` to interact with the application.
 
----
+## Evaluation Harness
 
-## 📊 Grounding Metrics ($G_v$)
+We include a rigorous automated evaluation harness to quantify the system's adherence to retrieved cases ($G_v$ score).
+```bash
+# From the root directory:
+python evaluation/run_evaluation.py
+```
+This generates a comprehensive `EVALUATION.md` report with the grounding scores and hallucination penalties for 10 simulated California scenarios.
 
-To prevent the LLM from fabricating laws (hallucination), every argument is passed through a **Grounding Verification Engine**:
+## Research Compliance
 
-$$\text{Grounding Score } (G_v) = \frac{\text{Number of Verified Citations}}{\text{Total Citations in Response}}$$
+This project satisfies all critical requirements for jurisdiction-grounded RAG:
+- **Guided Intake**: Structured extraction of claims and evidence from plain-language input.
+- **Knowledge Base**: 80+ real California legal authorities (Civil Code and precedent case law) seeded in a Qdrant vector database.
+- **Strict Grounding**: The `verify_citations` engine acts as a hard gate. If generated arguments fail to match retrieved authorities exactly, confidence is penalized.
+- **Metrics**: The `$G_v$` metric quantifies citation traceability, rigorously evaluated across a 10-scenario test bank.
 
-*   **Verified Citation**: A case name or statute matching a record returned by Qdrant.
-*   **Unverified Citation**: Any fabricated citation or case outside the isolated jurisdiction. Unverified citations are flagged in the UI with warning indicators, forcing the litigant to practice only against legally grounded arguments.
+## License
+
+MIT License
